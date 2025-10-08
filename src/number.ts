@@ -1,47 +1,35 @@
-import type { Codec } from "./codec";
-import { Validatable, type Context } from "./validatable";
+import { codec } from "./codec";
+import { addError, Pipe } from "./pipe";
 
-class NumberValidator<U = never> extends Validatable<number, U> {
-	constructor() {
-		super();
+class NumberValidator extends Pipe<unknown, number> {
+	type = "number" as const;
+
+	isT(data: unknown) {
+		return typeof data == "number";
 	}
-
-	isT(data: unknown, ctx: Context<U>) {
-		const res = typeof data == "number";
-		if (!res) this.addError("not a number", ctx);
-		return res;
-	}
-
 	min(n: number) {
 		return this.refine((v) => (v > n ? "" : `must be > ${n}`));
 	}
-
 	max(n: number) {
 		return this.refine((v) => (v < n ? "" : `must be < ${n}`));
 	}
 }
 
-export function number<T>() {
-	return new NumberValidator<T>();
+export function number() {
+	return new NumberValidator();
 }
 
-class NumberCodec<U>
-	extends NumberValidator<U>
-	implements Codec<string, number, U>
-{
-	_decode(input: unknown): number {
-		return parseFloat(input as string);
-	}
-	_encode(output: number): string {
-		return output.toString();
-	}
+export function codecNumber() {
+	return codec(
+		new NumberValidator(),
+		(input, ctx) => {
+			if (input == "NaN") return { output: NaN };
+			const parsed = parseFloat(input as string);
+			if (!isNaN(parsed)) return { output: parsed };
 
-	decode(data: unknown, ctx: Context<U> = {}) {
-		const toDecode = this._decode(data);
-		return super.decode(toDecode, ctx);
-	}
-}
-
-export function codecNumber<T>() {
-	return new NumberCodec<T>();
+			addError(`${input} is not a number`, ctx);
+			return { errors: ctx.errors! };
+		},
+		(output: number) => ({ output: output.toString() }),
+	);
 }

@@ -1,31 +1,31 @@
-import { Validatable, type Context, type Errors, type Result } from "./validatable";
+import { Pipe, type Context, type Errors, type Result } from "./pipe";
 
-class ArrayValidator<T, U = never> extends Validatable<Array<T>, U> {
-	constructor(private eleValidator: Validatable<T, U>) {
+class ArrayValidator<T> extends Pipe<number, Array<T>> {
+	type = "array" as const;
+
+	constructor(public element: Pipe<unknown, T>) {
 		super();
 	}
 
-	isT(data: unknown, ctx: Context<U>) {
-		const res = Array.isArray(data);
-		if (!res) this.addError("not an array", ctx);
-		return res;
+	isT(data: unknown) {
+		return Array.isArray(data);
 	}
 
-	decode(
-		data: unknown[],
-		ctx: Context<U> = {},
-	): Result<Array<T>> | { output: Array<T>; errors: Errors } {
-		const isT = this.isT(data, ctx);
-		if (!isT) return { errors: ctx.errors! };
+	decode(data: unknown, ctx: Context = {}): Result<Array<T>> {
+		const isT = this.isT(data);
+		if (!isT) {
+			this.addError(`not an ${this.type}`, ctx);
+			return { errors: ctx.errors! };
+		}
 
 		const output = new Array<T>(data.length);
 		let failedEle = false;
 
-		ctx.jsonPath ??= ["."];
+		ctx.jsonPath ??= [];
 		const arrIndex = ctx.jsonPath.length;
 		for (let i = 0; i < data.length; i++) {
 			ctx.jsonPath[arrIndex] = i.toString();
-			const decoded = this.eleValidator.decode(data[i], ctx);
+			const decoded = this.element.decode(data[i], ctx);
 			if ("output" in decoded) output[i] = decoded.output;
 			else failedEle = true;
 		}
@@ -39,6 +39,6 @@ class ArrayValidator<T, U = never> extends Validatable<Array<T>, U> {
 	}
 }
 
-export function array<T, U = never>(s: Validatable<T, U>) {
-	return new ArrayValidator<T, U>(s);
+export function array<T>(element: Pipe<unknown, T>) {
+	return new ArrayValidator<T>(element);
 }

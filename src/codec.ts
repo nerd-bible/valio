@@ -1,40 +1,20 @@
-import { Validatable, type Context, type Errors } from "./validatable";
+import { Pipe, type Context, type Result } from "./pipe";
 
-export interface Decoder<I, O, U> {
-	/** Context accumulates errors. */
-	_decode(input: I, ctx: Context<U>): O;
+export function codec<I, O, P extends Pipe<any, any>>(
+	fromValidator: P,
+	decoder: (input: I, ctx: Context) => Result<O>,
+	encoder: (output: O, ctx: Context) => Result<I>,
+) {
+	const oldDecode = fromValidator.decode;
+
+	return Object.assign(fromValidator, {
+		encode: encoder,
+		decode(data: I, ctx: Context = {}) {
+			const toDecode = decoder(data, ctx);
+			if ("output" in toDecode)
+				return oldDecode.bind(this)(toDecode.output, ctx);
+
+			return toDecode;
+		},
+	});
 }
-
-export interface Encoder<I, O, U> {
-	/** Context accumulates errors. */
-	_encode(output: O, ctx: Context<U>): I;
-}
-
-export type Codec<I, O, U> = Decoder<I, O, U> & Encoder<I, O, U>;
-
-// export abstract class Codec<I, O, U> extends Validatable<O, U> {
-// 	constructor(
-// 		public decoder: Decoder<I, O, U>,
-// 		public encoder: Encoder<I, O, U>,
-// 	) {
-// 		super();
-// 	}
-//
-// 	encode(output: O, ctx: Context<U>): { input: I; errors?: Errors } {
-// 		this.validate(output, ctx);
-// 		const input = this.encoder.encode(output, ctx);
-// 		return {
-// 			input,
-// 			errors: ctx.errors,
-// 		};
-// 	}
-//
-// 	decode(input: I, ctx: Context<U>): { output: O; errors?: Errors } {
-// 		const output = this.decoder.decode(input, ctx);
-// 		this.validate(output, ctx);
-// 		return {
-// 			output,
-// 			errors: ctx.errors,
-// 		};
-// 	}
-// }
