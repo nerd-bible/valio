@@ -20,7 +20,7 @@ class RecordValidator<K extends string | number, V> extends Pipe<
 	decode(data: unknown, ctx: Context = {}): Result<Record<K, V>> {
 		const isT = this.isT(data);
 		if (!isT) {
-			this.addError(`not a ${this.type}`, ctx);
+			this.addTypeError(ctx, data);
 			return { errors: ctx.errors! };
 		}
 

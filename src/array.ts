@@ -1,4 +1,4 @@
-import { Pipe, type Context, type Errors, type Result } from "./pipe";
+import { Pipe, type Context, type Result } from "./pipe";
 
 class ArrayValidator<T> extends Pipe<number, Array<T>> {
 	type = "array" as const;
@@ -14,7 +14,7 @@ class ArrayValidator<T> extends Pipe<number, Array<T>> {
 	decode(data: unknown, ctx: Context = {}): Result<Array<T>> {
 		const isT = this.isT(data);
 		if (!isT) {
-			this.addError(`not an ${this.type}`, ctx);
+			this.addTypeError(ctx, data);
 			return { errors: ctx.errors! };
 		}
 
@@ -25,10 +25,13 @@ class ArrayValidator<T> extends Pipe<number, Array<T>> {
 		const arrIndex = ctx.jsonPath.length;
 		for (let i = 0; i < data.length; i++) {
 			ctx.jsonPath[arrIndex] = i.toString();
+			console.log("decode", ctx.jsonPath);
 			const decoded = this.element.decode(data[i], ctx);
 			if ("output" in decoded) output[i] = decoded.output;
 			else failedEle = true;
 		}
+
+		ctx.jsonPath.pop();
 
 		if (failedEle) return { errors: ctx.errors! };
 

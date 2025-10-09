@@ -17,7 +17,7 @@ class EnumValidator<T extends Readonly<Array<string>>> extends Pipe<
 	decode(data: unknown, ctx: Context = {}): Result<T[number]> {
 		const isT = this.isT(data);
 		if (!isT) {
-			this.addError(`not an ${this.type}`, ctx);
+			this.addTypeError(ctx, data);
 			return { errors: ctx.errors! };
 		}
 

@@ -10,9 +10,9 @@ export function codec<I, O, P extends Pipe<any, any>>(
 	return Object.assign(fromValidator, {
 		encode: encoder,
 		decode(data: I, ctx: Context = {}) {
-			const toDecode = decoder(data, ctx);
+			const toDecode = oldDecode.bind(this)(data, ctx);
 			if ("output" in toDecode)
-				return oldDecode.bind(this)(toDecode.output, ctx);
+				return decoder(toDecode.output, ctx);
 
 			return toDecode;
 		},

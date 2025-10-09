@@ -12,7 +12,7 @@ class UnionValidator<T extends Readonly<Array<Pipe<any, any>>>> extends Pipe<
 
 	isT(data: unknown, ctx: Context): data is Output<T[number]> {
 		for (const f of this.options) {
-			if (f.isT(data, ctx)) return true;
+			if (f.isOutput(data, ctx)) return true;
 		}
 		return false;
 	}
@@ -20,7 +20,10 @@ class UnionValidator<T extends Readonly<Array<Pipe<any, any>>>> extends Pipe<
 	decode(data: unknown, ctx: Context = {}): Result<Output<T[number]>> {
 		const isT = this.isT(data, ctx);
 		if (!isT) {
-			this.addError(`not any of: ${this.options.map(o => o.type)}`, ctx);
+			this.addError(ctx, {
+				message: `not any of: ${this.options.map((o) => o.type)}`,
+				input: data,
+			});
 			return { errors: ctx.errors! };
 		}
 
@@ -32,7 +35,7 @@ class UnionValidator<T extends Readonly<Array<Pipe<any, any>>>> extends Pipe<
 
 		ctx.errors = {
 			...newCtx.errors,
-			...(ctx.errors ?? {})
+			...(ctx.errors ?? {}),
 		};
 		return { errors: ctx.errors };
 	}

@@ -1,25 +1,26 @@
-import { codec } from "./codec";
-import { Pipe } from "./pipe";
+import { pipe, type Result } from "./pipe";
 
-export class StringValidator extends Pipe<unknown, string> {
-	type = "string" as const;
-
-	isT = (data: unknown) => typeof data == "string";
-	regex = (re: RegExp) =>
-		this.refine((v) => (v.match(re) ? "" : `must match ${re.source}`));
-	nonempty = () => this.refine((v) => (v.length ? "" : `must be nonempty`));
+function defaultCoercion(input: any): Result<string> {
+	return {
+		success: true,
+		output: String(input),
+	};
 }
 
 export function string() {
-	return new StringValidator();
-}
+	return {
+		...pipe<any, string>("string"),
+		isOutput: (data: any) => typeof data == "string",
+		coerce(fn = defaultCoercion) {
+			this.coerceFn = fn;
+			return this;
+		},
 
-export function codecString() {
-	return codec(
-		new StringValidator(),
-		(input) => ({
-			output: input?.toString() ?? Object.prototype.toString.call(input),
-		}),
-		(output) => ({ output }),
-	);
+		regex(re: RegExp) {
+			return this.refine((v) => (v.match(re) ? "" : `must match ${re.source}`));
+		},
+		nonempty() {
+			return this.refine((v) => (v.length ? "" : `must be nonempty`));
+		},
+	};
 }

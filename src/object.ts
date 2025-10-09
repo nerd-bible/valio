@@ -1,7 +1,6 @@
 import {
 	Pipe,
 	type Context,
-	type Errors,
 	type Output,
 	type Result,
 } from "./pipe";
@@ -28,7 +27,7 @@ class ObjectValidator<T extends Record<string, Pipe<any, any>>> extends Pipe<
 	decode(data: unknown, ctx: Context = {}): Result<ShapeOutput<T>> {
 		const isT = this.isT(data);
 		if (!isT) {
-			this.addError(`not a ${this.type}`, ctx);
+			this.addTypeError(ctx, data);
 			return { errors: ctx.errors! };
 		}
 

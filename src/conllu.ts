@@ -53,11 +53,11 @@ const word = z.object({
 	lemma: z.string(),
 	upos: z.string(),
 	xpos: z.string(),
-	feats: recordConllu(),
+	feats: z.string(), // recordConllu(),
 	head: z.codecNumber(),
 	deprel: z.string(),
-	deps: recordConllu({ prop: "|", value: ":" }), // .pipe(z.record(rowId, primitive)),
-	misc: recordConllu(),
+	deps: z.string(), //recordConllu({ prop: "|", value: ":" }), // .pipe(z.record(rowId, primitive)),
+	misc: z.string(), //recordConllu(),
 });
 // .partial();
 const columns = Object.keys(word.shape) as (keyof z.Output<typeof word>)[];
@@ -67,15 +67,15 @@ const wordConllu = z.codec(
 	(v: string, ctx: z.Context) => {
 		const split = v
 			.split("\t")
-			.map((v) => (v == "_" || v == "" ? undefined : v));
+			// spec is unclear what a missing _ means
+			// the _ are there for readability in editors that don't show whitespace
+			.map((v) => (v == "_" ? "" : v));
 
 		const res = {} as any;
 		for (let i = 0; i < columns.length; i++)
 			res[columns[i] as (typeof columns)[number]] = split[i];
 
-		const out = word.decode(res, ctx);
-		console.log({ split, res });
-		return out;
+		return word.decode(res, ctx);
 	},
 	(v) => ({
 		output: columns
@@ -92,65 +92,71 @@ const sentence = z.object({
 	// 	text: z.string().nonempty(),
 	// })
 	// .catchall(z.union([z.string(), z.undefined()])),
-	words: z.array(wordConllu),
+	words: z.array(word),
 });
 
-const sentenceConllu = z.codec(z.string(),
+// Makes sure syntax is followed and required fields are included.
+export const normal = z.codec(
+	z.string(),
 	(str: string, ctx) => {
+		const sentences = [];
+
 		const lines = str.split(/\r?\n/);
-		const res = {
-			headers: {} as any,
+		let cur = {
+			headers: {},
 			words: [],
 		} as z.Output<typeof sentence>;
 		let parsingHeaders = true;
 		const headerPrefix = "# ";
 
-		for (const line of lines) {
+		ctx.jsonPath ??= [];
+		const length = ctx.jsonPath.length;
+
+		for (let i = 0; i < lines.length; i++) {
+			ctx.jsonPath[length] = (i + 1).toString();
+			const line = lines[i]!;
+
 			if (parsingHeaders && line.startsWith(headerPrefix)) {
 				const [k, v] = line.substring(headerPrefix.length).split("=");
-				res.headers[k.trim()] = v?.trim();
-			} else {
+				cur.headers[k.trim()] = v?.trim();
+			} else if (line) {
 				parsingHeaders = false;
-				console.log({ line })
 				const decoded = wordConllu.decode(line, ctx);
-				if ("output" in decoded) res.words.push(decoded.output);
+				if ("output" in decoded) cur.words.push(decoded.output);
+			} else if (!parsingHeaders && !line) {
+				parsingHeaders = true;
+				sentences.push(cur);
+				cur = {
+					headers: {},
+					words: [],
+				};
 			}
 		}
 
-		return { output: res, errors: ctx.errors };
+		return { output: sentences, errors: ctx.errors };
 	},
-	(s) => {
-		let res = "";
-		for (const k in s.headers) {
-			const v = s.headers[k];
-
-			res += `# ${k.trim()}`;
-			if (v) res += ` = ${v.trim()}`;
-			res += "\n";
-		}
-
-		res += s.words.join("\n");
-
-		return { output: res };
-	}
+	(sentences) => {
+		// let res = "";
+		// for (const k in s.headers) {
+		// 	const v = s.headers[k];
+		//
+		// 	res += `# ${k.trim()}`;
+		// 	if (v) res += ` = ${v.trim()}`;
+		// 	res += "\n";
+		// }
+		//
+		// res += s.words.join("\n");
+		//
+		// return { output: res };
+		return { output: "" };
+	},
 );
 
-// Makes sure syntax is followed and required fields are included.
-export const normal = z.codec(z.string(),
-	(str: string, ctx) => {
-		const output = [];
-		for (const sentence of str.trimEnd().split(/\r?\n\r?\n/g)) {
-			const decoded = sentenceConllu.decode(sentence, ctx);
-			if ("output" in decoded) output.push(decoded.output);
-		}
-		return { output, errors: ctx.errors };
-	},
-	(sentences) => ({ output: sentences.join("\n\n") }),
-);
+console.dir(wordConllu.decode(
+	"1	In	in	ADP	IN	_	3	case	_	Verse=1|SourceMap=1"
+), { depth: null });
 
-console.log(rowId.decode("15"))
-
-// const text = readFileSync("./test/bsb.conllu", "utf8");
-// const parsed = normal.decode(text);
-// console.log(parsed);
-// // console.log(normal.encode(parsed.data!).data);
+const text = readFileSync("./test/bsb.conllu", "utf8");
+const parsed = normal.decode(text);
+console.dir(parsed, { depth: null });
+// console.log(normal.encode(parsed.data!).data);

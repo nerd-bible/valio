@@ -1,10 +1,14 @@
+export type Error = {
+	input: any;
+	message: string;
+	userdata?: any;
+};
 export type Errors = {
-	[jsonPath: string]: string[];
+	[inputPath: string]: Error[];
 };
 export type Result<T> =
-	| { output: T }
-	| { errors: Errors }
-	| { output: T; errors: Errors };
+	| { success: true; output: T }
+	| { success: false; errors: Errors };
 export type Type =
 	| "string"
 	| "number"
@@ -18,66 +22,122 @@ export type Type =
 	| "undefined"
 	| "null";
 /** During encoding, decoding, or validation. */
-export type Context = {
-	jsonPath?: string[];
-	errors?: Errors;
+export class Context {
+	jsonPath: string[] = [];
+	errors: Errors = {};
 	/**
-	 * It's possible to properly pass down container type's to this, but
+	 * It's possible to properly pass down this type through containers, but
 	 * I cannot figure out how to do it.
 	 * May you, dear reader, find more success.
 	 */
 	userdata?: any;
-};
 
-export function addError(msg: string, ctx: Context) {
-	if (msg) {
-		ctx.jsonPath ??= [];
-		const key = "." + ctx.jsonPath.join(".");
-		ctx.errors ??= {};
-		ctx.errors[key] ??= [];
-		ctx.errors[key].push(msg);
+	addError(error: Error) {
+		const key = "." + this.jsonPath.join(".");
+		this.errors ??= {};
+		this.errors[key] ??= [];
+		// Probably should find a way to properly clone userdata.
+		if (this.userdata) error.userdata = { ...this.userdata };
+		this.errors[key].push(error);
 	}
 }
 
-export abstract class Pipe<I = unknown, O = unknown> {
-	checks: ((data: O, ctx: Context) => string)[] = [];
+export interface Pipe<I = any, O = any> {
+	/** @internal Just used for type inference. */
 	input?: I;
+	/** @internal Just used for type inference. */
 	output?: O;
-	abstract type: Type;
+	/** For errors */
+	ctx: Context;
+	type: string;
+	checks: Array<(data: O, ctx: Context) => string>;
+	coerceFn?: (input: I, ctx: Context) => Result<O>;
+	pipeFn?: Pipe<O, any>;
 
-	abstract isT(data: unknown, ctx: Context): data is O;
+	/** Pipes don't trust their input */
+	isOutput(data: any): data is O;
+	/** Add check */
+	refine(validator: (data: O) => string): this;
+	/** Add post-decode pipe */
+	pipe<O2>(to: Pipe<O, O2>): Pipe<I, O2>;
+	/** Add pre-decode transform */
+	coerce(fn: (input: I, ctx: Context) => Result<O>): this;
+	/**
+	 * Run the full pipeline:
+	 * - coerce
+	 * - type check
+	 * - value checks
+	 * - next pipe
+	 */
+	decode(input: I, ctx?: Context): Result<O>;
+	/** Encode output `O` to input `I` */
+	// encode(output: I): Result<O>;
+}
 
-	protected addError(msg: string, ctx: Context) {
-		addError(msg, ctx);
-	}
+export function pipe<I, O>(type: string): Pipe<I, O> {
+	return {
+		ctx: new Context(),
+		checks: [],
+		type,
 
-	/** Assumes (and does not check) that data is of type O */
-	check(data: O, ctx: Context = {}): boolean {
-		let allPassed = true;
-		for (const check of this.checks) {
-			const msg = check(data, ctx);
-			this.addError(msg, ctx);
-			if (msg) allPassed = false;
-		}
-		return allPassed;
-	}
+		isOutput(input: any): input is O {
+			return true;
+		},
 
-	decode(data: I, ctx: Context = {}): Result<O> {
-		// incorrect type?
-		if (!this.isT(data, ctx)) {
-			this.addError(`not a ${this.type}`, ctx);
-			return { errors: ctx.errors! };
-		}
-		// fails any validator?
-		if (!this.check(data, ctx)) return { output: data, errors: ctx.errors };
-		// is good!
-		return { output: data };
-	}
+		refine(validator: (data: O, ctx: Context) => string) {
+			return {
+				...this,
+				checks: [...this.checks, validator],
+			};
+		},
 
-	refine(validator: (data: O, ctx: Context) => string) {
-		this.checks.push(validator);
-		return this;
-	}
+		pipe<O2>(to: Pipe<O, O2>): Pipe<I, O2> {
+			return {
+				...this,
+				pipeFn: to,
+			} as any;
+		},
+
+		coerce(fn: (input: I, ctx: Context) => Result<O>) {
+			return {
+				...this,
+				coerceFn: fn,
+			};
+		},
+
+		decode(input: I, ctx = new Context()): Result<O> {
+			this.ctx = ctx;
+
+			const coerced = this.coerceFn?.(input, this.ctx);
+			if (coerced?.success == false)
+				return { success: false, errors: this.ctx.errors! };
+			const output = coerced?.success ? coerced.output : input;
+			// incorrect type?
+			if (!this.isOutput(output)) {
+				this.ctx.addError({
+					input,
+					message: `not type ${this.type}`,
+				});
+				return { success: false, errors: this.ctx.errors! };
+			}
+			// fails any validator?
+			let allPassed = true;
+			for (const check of this.checks) {
+				const message = check(output, this.ctx);
+				if (message) {
+					this.ctx.addError({ input: output, message });
+					allPassed = false;
+				}
+			}
+			if (!allPassed) return { success: false, errors: this.ctx.errors! };
+			// another pipe to go to?
+			if (this.pipeFn) return this.pipeFn.decode(output, this.ctx) as Result<O>;
+			// good!
+			return { success: true, output };
+		},
+		/** Encode output `O` to input `I` */
+		// encode(output: I): Result<O>;
+	};
 }
 
 export type Input<C extends Pipe<any, any>> = Required<C>["input"];
