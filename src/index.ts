@@ -1,12 +1,4 @@
-export * from "./array";
-export * from "./boolean";
-export * from "./codec";
-export * from "./enum";
-export * from "./literal";
-export * from "./number";
-export * from "./object";
 export * from "./pipe";
-export * from "./record";
-export * from "./string";
-export * from "./undefined";
-export * from "./union";
+export * from "./primitives";
+export * from "./containers";
+export * as codecs from "./codecs";

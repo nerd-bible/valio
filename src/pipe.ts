@@ -40,105 +40,134 @@ export class Context {
 		if (this.userdata) error.userdata = { ...this.userdata };
 		this.errors[key].push(error);
 	}
+
+	validateType<T>(
+		isType: (data: any) => data is T,
+		type: string,
+		value: any,
+	): value is T {
+		if (!isType(value)) {
+			this.addError({ input: value, message: `not type ${type}` });
+			return false;
+		}
+		return true;
+	}
 }
 
+export interface Codec<I, O> {
+	decode?: (input: I, ctx: Context) => Result<O> | undefined;
+	encode?: (output: O, ctx: Context) => Result<I>;
+}
+
+/** Shallow copied so don't use members that are container types. */
 export interface Pipe<I = any, O = any> {
 	/** @internal Just used for type inference. */
-	input?: I;
+	_input?: I;
 	/** @internal Just used for type inference. */
-	output?: O;
-	/** For errors */
-	ctx: Context;
-	type: string;
-	checks: Array<(data: O, ctx: Context) => string>;
-	coerceFn?: (input: I, ctx: Context) => Result<O>;
-	pipeFn?: Pipe<O, any>;
+	_output?: O;
 
-	/** Pipes don't trust their input */
+	/** For error messages and reflection */
+	inputType: string;
+	outputType: string;
+	/** For validation */
+	checks: Array<(data: O, ctx: Context) => string>;
+	/** Next pipeline to run. */
+	pipes: Array<Pipe<any, any>>;
+
+	isInput(data: any): data is I;
 	isOutput(data: any): data is O;
-	/** Add check */
+	/** Add a check */
 	refine(validator: (data: O) => string): this;
-	/** Add post-decode pipe */
+	/** Add next runner */
 	pipe<O2>(to: Pipe<O, O2>): Pipe<I, O2>;
-	/** Add pre-decode transform */
-	coerce(fn: (input: I, ctx: Context) => Result<O>): this;
 	/**
-	 * Run the full pipeline:
-	 * - coerce
+	 * Run:
 	 * - type check
 	 * - value checks
 	 * - next pipe
 	 */
 	decode(input: I, ctx?: Context): Result<O>;
-	/** Encode output `O` to input `I` */
-	// encode(output: I): Result<O>;
+	/**
+	 * Run:
+	 * - type check
+	 * - value checks
+	 * - previous pipe
+	 * */
+	encode(output: O, ctx?: Context): Result<I>;
 }
 
-export function pipe<I, O>(type: string): Pipe<I, O> {
-	return {
-		ctx: new Context(),
-		checks: [],
-		type,
+function validate<T>(
+	checks: Array<(data: T, ctx: Context) => string>,
+	ctx: Context,
+	output: any,
+): output is T {
+	let res = true;
+	for (const check of checks) {
+		const message = check(output, ctx);
+		if (message) {
+			ctx.addError({ input: output, message });
+			res = false;
+		}
+	}
+	return res;
+}
 
-		isOutput(input: any): input is O {
-			return true;
-		},
+export function pipe<I = any, O = any>(
+	inputType: string,
+	outputType: string,
+): Pipe<I, O> {
+	return {
+		checks: [],
+		pipes: [],
+		inputType,
+		outputType,
+
+		isInput: (input: any): input is I => true,
+		isOutput: (output: any): output is O => true,
 
 		refine(validator: (data: O, ctx: Context) => string) {
 			return {
 				...this,
-				checks: [...this.checks, validator],
+				checks: this.checks.concat(validator),
 			};
 		},
 
-		pipe<O2>(to: Pipe<O, O2>): Pipe<I, O2> {
+		pipe<O2>(pipe: Pipe<O, O2>): Pipe<I, O2> {
 			return {
 				...this,
-				pipeFn: to,
+				pipes: this.pipes.concat(pipe),
 			} as any;
 		},
 
-		coerce(fn: (input: I, ctx: Context) => Result<O>) {
-			return {
-				...this,
-				coerceFn: fn,
-			};
-		},
-
 		decode(input: I, ctx = new Context()): Result<O> {
-			this.ctx = ctx;
-
-			const coerced = this.coerceFn?.(input, this.ctx);
-			if (coerced?.success == false)
-				return { success: false, errors: this.ctx.errors! };
-			const output = coerced?.success ? coerced.output : input;
-			// incorrect type?
-			if (!this.isOutput(output)) {
-				this.ctx.addError({
-					input,
-					message: `not type ${this.type}`,
-				});
-				return { success: false, errors: this.ctx.errors! };
+			if (
+				!ctx.validateType(this.isOutput, this.outputType, input) ||
+				!validate(this.checks, ctx, input)
+			)
+				return { success: false, errors: ctx.errors };
+			let res: Result<any> = { success: true, output: input };
+			for (const p of this.pipes) {
+				res = p.decode(res.output, ctx);
+				if (!res.success) return res;
 			}
-			// fails any validator?
-			let allPassed = true;
-			for (const check of this.checks) {
-				const message = check(output, this.ctx);
-				if (message) {
-					this.ctx.addError({ input: output, message });
-					allPassed = false;
-				}
-			}
-			if (!allPassed) return { success: false, errors: this.ctx.errors! };
-			// another pipe to go to?
-			if (this.pipeFn) return this.pipeFn.decode(output, this.ctx) as Result<O>;
-			// good!
-			return { success: true, output };
+			return res;
 		},
-		/** Encode output `O` to input `I` */
-		// encode(output: I): Result<O>;
+
+		encode(output: O, ctx = new Context()): Result<I> {
+			if (
+				!ctx.validateType(this.isInput, this.inputType, output) ||
+				!validate(this.checks, ctx, output)
+			)
+				return { success: false, errors: ctx.errors };
+			let res: Result<any> = { success: true, output };
+			for (const p of this.pipes) {
+				res = p.encode(res.output, ctx);
+				if (!res.success) return res;
+			}
+			return res;
+		},
 	};
 }
 
-export type Input<C extends Pipe<any, any>> = Required<C>["input"];
-export type Output<C extends Pipe<any, any>> = Required<C>["output"];
+export type Input<C extends Pipe> = Required<C>["_input"];
+export type Output<C extends Pipe> = Required<C>["_output"];
