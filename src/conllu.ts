@@ -2,7 +2,7 @@ import * as z from "./index";
 import { readFileSync } from "node:fs";
 
 export const rowNumber = z.number().min(0);
-export const intId = z.codecNumber().min(0);
+export const intId = z.codecs.number().min(0);
 export const rowId = z.union([
 	// Normal integer like 1, 2
 	intId,
@@ -10,11 +10,11 @@ export const rowId = z.union([
 	z.string(), //.regex([rowNumber, "-", rowNumber]),
 ]);
 
-export const boolean = z.codecBoolean({
+export const boolean = z.codecs.boolean({
 	true: ["yes", "true"],
 	false: ["no", "false"],
 });
-export const primitive = z.union([z.string(), boolean, z.codecNumber()]);
+export const primitive = z.union([z.string(), boolean, z.codecs.number()]);
 
 export function recordConllu(delims = { prop: "|", value: "=" }) {
 	return z.codec(
@@ -54,7 +54,7 @@ const word = z.object({
 	upos: z.string(),
 	xpos: z.string(),
 	feats: z.string(), // recordConllu(),
-	head: z.codecNumber(),
+	head: z.codecs.number(),
 	deprel: z.string(),
 	deps: z.string(), //recordConllu({ prop: "|", value: ":" }), // .pipe(z.record(rowId, primitive)),
 	misc: z.string(), //recordConllu(),

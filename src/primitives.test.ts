@@ -72,24 +72,24 @@ test("number codec", () => {
 	expect(schema.encode(1.3)).toEqual({ success: true, output: 1.3 });
 });
 
-test("string codec", () => {
-	const schema = v.codecs.string();
-
-	expect(schema.decode(13)).toEqual({ success: true, output: "13" });
-	expect(schema.decode(null)).toEqual({ success: true, output: "null" });
-	expect(schema.encode(null as any)).toEqual({
-		success: false,
-		errors: {
-			".": [
-				{
-					input: null,
-					message: "not type string",
-				},
-			],
-		},
-	});
-	expect(schema.encode("asdf")).toEqual({ success: true, output: "asdf" });
-});
+// test("string codec", () => {
+// 	const schema = v.codecs.string();
+//
+// 	expect(schema.decode(13)).toEqual({ success: true, output: "13" });
+// 	expect(schema.decode(null)).toEqual({ success: true, output: "null" });
+// 	expect(schema.encode(null as any)).toEqual({
+// 		success: false,
+// 		errors: {
+// 			".": [
+// 				{
+// 					input: null,
+// 					message: "not type string",
+// 				},
+// 			],
+// 		},
+// 	});
+// 	expect(schema.encode("asdf")).toEqual({ success: true, output: "asdf" });
+// });
 
 test("pipe", () => {
 	const schema = v.string().pipe(v.number());

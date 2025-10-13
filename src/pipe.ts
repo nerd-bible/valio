@@ -82,8 +82,8 @@ export interface Pipe<I = any, O = any> {
 	_output?: O;
 
 	/** For error messages and reflection */
-	inputType: string;
-	outputType: string;
+	inputName: string;
+	outputName: string;
 	/** For validation */
 	checks: Array<(data: O, ctx: Context) => string>;
 	/** Next pipeline to run. */
@@ -91,31 +91,41 @@ export interface Pipe<I = any, O = any> {
 
 	isInput(data: any): data is I;
 	isOutput(data: any): data is O;
+
+	inputTransform?(input: I, ctx: Context): Result<O>;
+	outputTransform?(output: O, ctx: Context): Result<I>;
 	/** Add a check */
 	refine(validator: (data: O) => string): this;
 	/** Add next runner */
 	pipe<O2>(to: Pipe<O, O2>): Pipe<I, O2>;
-	/** Mostly useful for containers */
-	decoder(output: O, ctx: Context): Result<O>;
-	/** Mostly useful for containers */
-	encoder(input: I, ctx: Context): Result<I>;
 
+	decodeAny(input: any, ctx?: Context): Result<O>;
+	encodeAny(output: any, ctx?: Context): Result<I>;
+	// For type checking
 	decode(input: I, ctx?: Context): Result<O>;
 	encode(output: O, ctx?: Context): Result<I>;
 }
 
+type Param<A, B> = {
+	name: string;
+	typeCheck?(v: any): v is A;
+	transform?(v: A, ctx: Context): Result<B>;
+};
+
 export function pipe<I = any, O = any>(
-	inputType: string,
-	outputType: string,
+	inputParam: Param<I, O>,
+	outputParam: Param<O, I>,
 ): Pipe<I, O> {
 	return {
 		checks: [],
 		pipes: [],
-		inputType,
-		outputType,
-
-		isInput: (input: any): input is I => true,
-		isOutput: (output: any): output is O => true,
+		// Flatten because some methods shallow clone.
+		inputName: inputParam.name,
+		outputName: outputParam.name,
+		isInput: inputParam.typeCheck ?? ((data: any): data is I => true),
+		isOutput: outputParam.typeCheck ?? ((data: any): data is O => true),
+		inputTransform: inputParam.transform,
+		outputTransform: outputParam.transform,
 
 		refine(validator: (data: O, ctx: Context) => string) {
 			return {
@@ -131,33 +141,39 @@ export function pipe<I = any, O = any>(
 			} as any;
 		},
 
-		decoder(output: O): Result<O> {
-			return { success: true, output };
-		},
-		encoder(input: I): Result<I> {
-			return { success: true, output: input };
-		},
-
-		decode(input: I, ctx = new Context()): Result<O> {
-			if (!ctx.validateType(this.isOutput, this.outputType, input))
+		decodeAny(input: any, ctx = new Context()): Result<O> {
+			if (!ctx.validateType(this.isInput, this.inputName, input))
 				return { success: false, errors: ctx.errors };
 
-			let res = this.decoder(input, ctx);
-			if (!res.success || !ctx.validate(this.checks, res.output))
+			let res = this.inputTransform?.(input, ctx) ?? {
+				success: true,
+				output: input,
+			};
+			if (
+				!res.success ||
+				!ctx.validateType(this.isOutput, this.outputName, res.output) ||
+				!ctx.validate(this.checks, res.output)
+			)
 				return { success: false, errors: ctx.errors };
 
 			for (const p of this.pipes) {
 				res = p.decode(res.output, ctx);
 				if (!res.success) return res;
 			}
-			return res;
+			return res as { success: true, output: O };
+		},
+		decode(input: I, ctx = new Context()): Result<O> {
+			return this.decodeAny(input, ctx);
 		},
 
-		encode(output: O, ctx = new Context()): Result<I> {
-			if (!ctx.validateType(this.isInput, this.inputType, output))
+		encodeAny(output: any, ctx = new Context()): Result<I> {
+			if (!ctx.validateType(this.isOutput, this.outputName, output))
 				return { success: false, errors: ctx.errors };
 
-			let res = this.encoder(output, ctx);
+			let res = this.outputTransform?.(output, ctx) ?? {
+				success: true,
+				output,
+			};
 			if (!res.success || !ctx.validate(this.checks, output))
 				return { success: false, errors: ctx.errors };
 
@@ -165,7 +181,10 @@ export function pipe<I = any, O = any>(
 				res = p.encode(res.output, ctx);
 				if (!res.success) return res;
 			}
-			return res;
+			return res as { success: true, output: I };
+		},
+		encode(output: O, ctx = new Context()): Result<I> {
+			return this.encodeAny(output, ctx);
 		},
 	};
 }

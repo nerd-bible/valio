@@ -1,28 +1,30 @@
 import { pipe, type Pipe } from "./pipe";
 
+function primitive<T>(name: string, typeCheck: (v: T) => v is T) {
+	return pipe({ name, typeCheck }, { name, typeCheck });
+}
+
 export function boolean() {
-	return {
-		...pipe<any, boolean>("any", "boolean"),
-		isOutput: (data: any) => typeof data == "boolean",
-	};
+	return primitive("boolean", (v): v is boolean => typeof v == "boolean");
 }
 
 export function undefined() {
-	return {
-		...pipe<any, undefined>("any", "undefined"),
-		isOutput: (data: any) => typeof data == "undefined",
-	};
+	return primitive("undefined", (v): v is undefined => typeof v == "undefined");
 }
 
+function null_() {
+	return primitive<null>("null", (v): v is null => v === null);
+}
+export { null_ as null };
+
 export function number() {
-	interface Number extends Pipe<any, number> {
+	interface Numberr extends Pipe<any, number> {
 		min(n: number): this;
 		max(n: number): this;
 	}
 
 	return {
-		...pipe<any, number>("any", "number"),
-		isOutput: (data: unknown) => typeof data == "number",
+		...primitive("number", (v): v is number => typeof v == "number"),
 
 		min(n: number) {
 			return this.refine((v) => (v > n ? "" : `must be > ${n}`));
@@ -30,7 +32,7 @@ export function number() {
 		max(n: number) {
 			return this.refine((v) => (v < n ? "" : `must be < ${n}`));
 		},
-	} as Number;
+	} as Numberr;
 }
 
 export function string() {
@@ -40,8 +42,7 @@ export function string() {
 	}
 
 	return {
-		...pipe<any, string>("any", "string"),
-		isOutput: (data: any) => typeof data == "string",
+		...primitive("string", (v): v is string => typeof v == "string"),
 
 		regex(re: RegExp) {
 			return this.refine((v) => (v.match(re) ? "" : `must match ${re.source}`));
@@ -54,24 +55,12 @@ export function string() {
 
 export type Literal = string | number | bigint | boolean | null | undefined;
 export function literal<T extends Literal>(literal: T) {
-	return {
-		...pipe<any, T>("any", "literal"),
-		isOutput: (v: any) => v == literal,
-	};
+	return primitive(`${literal}`, (v): v is T => v == literal);
 }
-// Have to use this syntax because JS doesn't like "enum" and "null".
+
 function enum_<T extends Literal>(literals: Array<T>) {
-	return {
-		...pipe<any, T>("any", "enum"),
-		isOutput: (v: any) => literals.includes(v),
-	};
+	return primitive(`${literals.join(",")}`, (v: any): v is T =>
+		literals.includes(v),
+	);
 }
 export { enum_ as enum };
-
-function null_() {
-	return {
-		...pipe<any, null>("any", "null"),
-		isOutput: (data: any) => data === null,
-	};
-}
-export { null_ as null };

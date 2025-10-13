@@ -16,7 +16,7 @@ test("array", () => {
 			],
 		},
 	});
-	expect(schema.decode(54)).toEqual({
+	expect(schema.decodeAny(54)).toEqual({
 		success: false,
 		errors: {
 			".": [{ input: 54, message: "not type array" }],
@@ -73,9 +73,7 @@ test("array number codec", () => {
 });
 
 test("object", () => {
-	const o = v.object({
-		foo: v.number().min(4),
-	});
+	const o = v.object({ foo: v.number().min(4) });
 	type O = v.Output<typeof o>;
 
 	expect(o.decode({ foo: 10 })).toEqual({
@@ -148,7 +146,7 @@ test("union", () => {
 		success: true,
 		output: "asdf",
 	});
-	expect(schema.decode({})).toEqual({
+	expect(schema.decodeAny({})).toEqual({
 		success: false,
 		errors: {
 			".": [
