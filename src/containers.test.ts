@@ -24,96 +24,139 @@ test("array", () => {
 	});
 });
 
-// test("array codec", () => {
-// 	const schema = v.array(v.codecs.number()).codec({
-// 		decode: (v: string) => {
-// 			return { success: true, output: v.split(",") };
-// 		},
-// 		encode: (v: Array<string>) => {
-// 			return { success: true, output: v.join(",") };
-// 		},
-// 	});
-//
-// 	expect(schema.decode("5,4")).toEqual({ success: true, output: [5, 4] });
-// 	expect(schema.decode([5, 4])).toEqual({ success: false });
-//
-// 	expect(schema.encode([5,4])).toEqual({ success: true, output: "5,4" });
-// 	expect(schema.encode("5,4")).toEqual({ success: false });
-// });
+test("array failed element", () => {
+	const schema = v.array(v.number().min(4).min(5));
 
-// test("good", () => {
-// 	const schema = array<number>(number());
-// 	type O = Output<typeof schema>;
-//
-// 	expect(schema.decode([54])).toEqual({
-// 		output: [54] as O,
-// 	});
-// });
-//
-// test("failed element", () => {
-// 	const schema = array(number().min(4).min(5));
-//
-// 	expect(schema.decode(["5", 5])).toEqual({
-// 		errors: {
-// 			".0": ["not a number"],
-// 			".1": ["must be > 5"],
-// 		},
-// 	});
-// });
-//
-// test("number codec", () => {
-// 	const schema = array(codecNumber().min(4).min(5));
-//
-// 	expect(schema.decode(["NaN", "5", 5])).toEqual({
-// 		output: [NaN, 5, 5],
-// 		errors: {
-// 			".0": ["must be > 4", "must be > 5"],
-// 			".1": ["must be > 5"],
-// 			".2": ["must be > 5"],
-// 		},
-// 	});
-// });
-//
-// test("union", () => {
-// 	const schema = union([string(), number()]);
-//
-// 	expect(schema.decode(42)).toEqual({
-// 		output: 42,
-// 	});
-// 	expect(schema.decode("asdf")).toEqual({
-// 		output: "asdf",
-// 	});
-// 	expect(schema.decode({})).toEqual({
-// 		errors: {
-// 			".": ["not any of: string,number"],
-// 		},
-// 	});
-// });
-//
-// test("codec member", () => {
-// 	const schema = union([codecNumber(), string()]);
-//
-// 	expect(schema.decode("42")).toEqual({
-// 		output: 42,
-// 	});
-// 	expect(schema.decode("asdf")).toEqual({
-// 		output: "asdf",
-// 	});
-// 	expect(schema.decode({})).toEqual({
-// 		errors: {
-// 			".": ["not any of: number,string"],
-// 		},
-// 	});
-// });
-//
-// test("object", () => {
-// 	const o = object({
-// 		foo: number().min(4),
-// 	});
-// 	type O = Output<typeof o>;
-//
-// 	expect(o.decode({ foo: 10 })).toEqual({
-// 		output: { foo: 10 } as O,
-// 		errors: undefined,
-// 	});
-// });
+	expect(schema.decode(["5", 5])).toEqual({
+		success: false,
+		errors: {
+			".0": [{ input: "5", message: "not type number" }],
+			".1": [{ input: 5, message: "must be > 5" }],
+		},
+	});
+});
+
+test("array number codec", () => {
+	const schema = v.array(v.codecs.number().min(4).min(5));
+
+	expect(schema.decode(["10a", "11b"])).toEqual({
+		success: true,
+		output: [10, 11],
+	});
+	expect(schema.decode(["NaN", "5", 5])).toEqual({
+		errors: {
+			".0": [
+				{
+					input: NaN,
+					message: "must be > 4",
+				},
+				{
+					input: NaN,
+					message: "must be > 5",
+				},
+			],
+			".1": [
+				{
+					input: 5,
+					message: "must be > 5",
+				},
+			],
+			".2": [
+				{
+					input: 5,
+					message: "must be > 5",
+				},
+			],
+		},
+		success: false,
+	});
+});
+
+test("object", () => {
+	const o = v.object({
+		foo: v.number().min(4),
+	});
+	type O = v.Output<typeof o>;
+
+	expect(o.decode({ foo: 10 })).toEqual({
+		success: true,
+		output: { foo: 10 } as O,
+	});
+	expect(o.decode({ bar: 10 })).toEqual({
+		success: false,
+		errors: {
+			".foo": [
+				{
+					input: undefined,
+					message: "not type number",
+				},
+			],
+		},
+	});
+});
+
+test("nested object", () => {
+	const o = v.object({
+		foo: v.object({ bar: v.number().min(4) }),
+	});
+
+	expect(o.decode({ foo: { bar: 10 } })).toEqual({
+		success: true,
+		output: { foo: { bar: 10 } },
+	});
+	expect(o.decode({ bar: 10 })).toEqual({
+		success: false,
+		errors: {
+			".foo": [
+				{
+					input: undefined,
+					message: "not type object",
+				},
+			],
+		},
+	});
+});
+
+test("record", () => {
+	const o = v.record(v.string(), v.number());
+
+	expect(o.decode({ bar: 10 })).toEqual({
+		success: true,
+		output: { bar: 10 },
+	});
+	expect(o.decode({ foo: { bar: 10 } })).toEqual({
+		success: false,
+		errors: {
+			".foo": [
+				{
+					input: { bar: 10 },
+					message: "not type number",
+				},
+			],
+		},
+	});
+});
+
+test("union", () => {
+	const schema = v.union([v.string(), v.number()]);
+
+	expect(schema.decode(42)).toEqual({
+		success: true,
+		output: 42,
+	});
+	expect(schema.decode("asdf")).toEqual({
+		success: true,
+		output: "asdf",
+	});
+	expect(schema.decode({})).toEqual({
+		success: false,
+		errors: {
+			".": [
+				{
+					input: {},
+					message: "not type string|number",
+				},
+			],
+		},
+	});
+});
