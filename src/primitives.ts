@@ -5,11 +5,21 @@ function primitive<T>(name: string, typeCheck: (v: T) => v is T) {
 }
 
 export function boolean() {
-	return primitive("boolean", (v): v is boolean => typeof v == "boolean");
+	return primitive<boolean>(
+		"boolean",
+		(v): v is boolean => typeof v == "boolean",
+	);
 }
 
 export function undefined() {
-	return primitive("undefined", (v): v is undefined => typeof v == "undefined");
+	return primitive<undefined>(
+		"undefined",
+		(v): v is undefined => typeof v == "undefined",
+	);
+}
+
+export function any() {
+	return primitive<any>("any", (v): v is any => true);
 }
 
 function null_() {
@@ -18,13 +28,13 @@ function null_() {
 export { null_ as null };
 
 export function number() {
-	interface Numberr extends Pipe<any, number> {
+	interface Numberr extends Pipe<number, number> {
 		min(n: number): this;
 		max(n: number): this;
 	}
 
 	return {
-		...primitive("number", (v): v is number => typeof v == "number"),
+		...primitive<number>("number", (v): v is number => typeof v == "number"),
 
 		min(n: number) {
 			return this.refine((v) => (v > n ? "" : `must be > ${n}`));
@@ -36,13 +46,13 @@ export function number() {
 }
 
 export function string() {
-	interface Stringg extends Pipe<any, string> {
+	interface Stringg extends Pipe<string, string> {
 		regex(re: RegExp): this;
 		nonempty(): this;
 	}
 
 	return {
-		...primitive("string", (v): v is string => typeof v == "string"),
+		...primitive<string>("string", (v): v is string => typeof v == "string"),
 
 		regex(re: RegExp) {
 			return this.refine((v) => (v.match(re) ? "" : `must match ${re.source}`));
@@ -55,11 +65,11 @@ export function string() {
 
 export type Literal = string | number | bigint | boolean | null | undefined;
 export function literal<T extends Literal>(literal: T) {
-	return primitive(`${literal}`, (v): v is T => v == literal);
+	return primitive<T>(`${literal}`, (v): v is T => v == literal);
 }
 
 function enum_<T extends Literal>(literals: Array<T>) {
-	return primitive(`${literals.join(",")}`, (v: any): v is T =>
+	return primitive<T>(`${literals.join(",")}`, (v: any): v is T =>
 		literals.includes(v),
 	);
 }

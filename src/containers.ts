@@ -23,7 +23,7 @@ export function array<T>(element: Pipe<any, T>) {
 			},
 		},
 		{
-			name: `array<${element.outputName}>`,
+			name: `array<${element.o.name}>`,
 			typeCheck: (v): v is Array<any> => Array.isArray(v),
 		},
 	);
@@ -102,22 +102,22 @@ export function record<K extends string | number, V>(
 			},
 		},
 		{
-			name: `record<${keyPipe.outputName},${valPipe.outputName}>`,
+			name: `record<${keyPipe.o.name},${valPipe.o.name}>`,
 			typeCheck: (v): v is object =>
 				Object.prototype.toString.call(v) == "[object Object]",
 		},
 	);
 }
 
-export function union<T extends Readonly<Array<Pipe<any, any>>>>(options: T) {
+export function union<T extends Readonly<Pipe[]>>(options: T) {
 	type O = Output<T[number]>;
-	const name = options.map((o) => o.outputName).join("|");
+	const name = options.map((o) => o.o.name).join("|");
 	function typeCheck(data: any): data is O {
-		for (const f of options) if (f.isOutput(data)) return true;
+		for (const f of options) if (f.o.typeCheck?.(data)) return true;
 		return false;
 	}
 
-	return pipe(
+	return pipe<O, O>(
 		{
 			name,
 			typeCheck,
