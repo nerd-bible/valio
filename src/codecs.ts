@@ -1,4 +1,4 @@
-import type { Context, Pipe, Result } from "./pipe";
+import type { Context, Pipe, Result, Output } from "./pipe";
 import * as p from "./primitives";
 import * as c from "./containers";
 
@@ -16,40 +16,53 @@ export function custom<A, B, C>(
 	return res;
 }
 
-export function number(
-	parser = parseFloat,
-): p.Number & Pipe<string | number | null | undefined, number> {
-	return custom(
-		c.union([p.string(), p.number(), p.null(), p.undefined()]),
-		p.number(),
-		{
-			decode(input, ctx) {
-				if (typeof input == "number") return { success: true, output: input };
-				if (input == null || input.toLowerCase() == "nan")
-					return { success: true, output: NaN };
+const numberInput = c.union([p.string(), p.number(), p.null(), p.undefined()]);
 
-				const output = parser(input);
-				if (!isNaN(output)) return { success: true, output };
+export class Number
+	extends p.Number
+	implements Pipe<Output<typeof numberInput>, number>
+{
+	constructor(parser = parseFloat) {
+		super();
+		this.i = numberInput.i;
+		this.i.transform = function decode(
+			input: Output<typeof numberInput>,
+			ctx: Context,
+		) {
+			if (typeof input == "number") return { success: true, output: input };
+			if (input == null || input.toLowerCase() == "nan")
+				return { success: true, output: NaN };
 
-				ctx.addError({ input, message: "could not parse number" });
-				return { success: false, errors: ctx.errors };
-			},
-		},
-	) as ReturnType<typeof number>;
+			const output = parser(input);
+			if (!isNaN(output)) return { success: true, output };
+
+			ctx.addError({ input, message: "could not parse number" });
+			return { success: false, errors: ctx.errors };
+		};
+	}
 }
 
-export function boolean(opts: {
-	true?: string[];
-	false?: string[];
-}): p.Boolean & Pipe<any, boolean> {
-	return custom(p.any(), p.boolean(), {
-		decode(input) {
+export function number(parser = parseFloat) {
+	return new Number(parser);
+}
+
+type BooleanOpts = { true?: string[]; false?: string[] };
+
+export class Boolean extends p.Boolean implements Pipe<any, boolean> {
+	constructor(opts: BooleanOpts) {
+		super();
+		this.i = p.any().i;
+		this.i.transform = function decode(input: any): Result<boolean> {
 			if (typeof input === "string") {
 				if (opts.true?.includes(input)) return { success: true, output: true };
 				if (opts.false?.includes(input))
 					return { success: true, output: false };
 			}
-			return { success: true, output: Boolean(input) };
-		},
-	});
+			return { success: true, output: globalThis.Boolean(input) };
+		};
+	}
+}
+
+export function boolean(opts: BooleanOpts) {
+	return new Boolean(opts);
 }

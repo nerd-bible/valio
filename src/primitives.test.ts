@@ -50,12 +50,18 @@ test("double min", () => {
 });
 
 test("pipe", () => {
-	const schema = v.string().pipe(v.number() as v.Pipe<any, number>);
+	const schema = v.string().pipe<number>(v.number() as v.Pipe<any, number>);
 
 	expect(schema.decode("42")).toEqual({
 		success: false,
 		errors: {
 			".": [{ input: "42", message: "not type number" }],
+		},
+	});
+	expect(schema.encode(42)).toEqual({
+		success: false,
+		errors: {
+			".": [{ input: 42, message: "not type string" }],
 		},
 	});
 });

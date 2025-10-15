@@ -1,82 +1,72 @@
-import { pipe, type Pipe } from "./pipe";
+import { Pipe, Task } from "./pipe";
 
 function primitive<T>(name: string, typeCheck: (v: T) => v is T) {
-	return pipe({ name, typeCheck }, { name, typeCheck });
+	const t = new Task(name, typeCheck);
+	return new Pipe(t, t);
 }
 
-export interface Boolean {}
-
-export function boolean(): Boolean & Pipe<boolean, boolean> {
-	return primitive("boolean", (v): v is boolean => typeof v == "boolean");
+export class Boolean extends Pipe<boolean, boolean> {
+	constructor() {
+		const t = new Task("boolean", (v): v is boolean => typeof v == "boolean");
+		super(t, t);
+	}
 }
 
-export interface Undefined {}
+export function boolean() {
+	return new Boolean();
+}
 
-export function undefined(): Undefined & Pipe<undefined, undefined> {
+export function undefined() {
 	return primitive("undefined", (v): v is undefined => typeof v == "undefined");
 }
 
-export interface Any {}
-
-export function any(): Any & Pipe<any, any> {
+export function any() {
 	return primitive("any", (v): v is any => true);
 }
 
-export interface Null {}
-
-function null_(): Null & Pipe<null, null> {
+function null_() {
 	return primitive("null", (v): v is null => v === null);
 }
 export { null_ as null };
 
-export interface Number {
-	min(n: number): this;
-	max(n: number): this;
+export class Number extends Pipe<number, number> {
+	constructor() {
+		const t = new Task("number", (v): v is number => typeof v == "number");
+		super(t, t);
+	}
+	min(n: number) {
+		return this.refine((v) => (v > n ? "" : `must be > ${n}`));
+	}
+	max(n: number) {
+		return this.refine((v) => (v < n ? "" : `must be < ${n}`));
+	}
 }
-export function number(): Number & Pipe<number, number> {
-	return {
-		...primitive<number>("number", (v): v is number => typeof v == "number"),
-
-		min(n: number) {
-			return this.refine((v) => (v > n ? "" : `must be > ${n}`));
-		},
-		max(n: number) {
-			return this.refine((v) => (v < n ? "" : `must be < ${n}`));
-		},
-	} as ReturnType<typeof number>;
-}
-
-export interface String {
-	regex(re: RegExp): this;
-	nonempty(): this;
-}
-export function string(): String & Pipe<string, string> {
-	return {
-		...primitive<string>("string", (v): v is string => typeof v == "string"),
-
-		regex(re: RegExp) {
-			return this.refine((v) => (v.match(re) ? "" : `must match ${re.source}`));
-		},
-		nonempty() {
-			return this.refine((v) => (v.length ? "" : `must be nonempty`));
-		},
-	} as ReturnType<typeof string>;
+export function number() {
+	return new Number();
 }
 
-export type Lit =
-	| string
-	| number
-	| bigint
-	| boolean
-	| null
-	| undefined;
-export interface Literal {}
-export function literal<T extends Lit>(literal: T): Literal & Pipe<T, T> {
+export class String extends Pipe<string, string> {
+	constructor() {
+		const t = new Task("string", (v): v is string => typeof v == "string");
+		super(t, t);
+	}
+	regex(re: RegExp) {
+		return this.refine((v) => (v.match(re) ? "" : `must match ${re.source}`));
+	}
+	nonempty() {
+		return this.refine((v) => (v.length ? "" : `must be nonempty`));
+	}
+}
+export function string() {
+	return new String();
+}
+
+export type Lit = string | number | bigint | boolean | null | undefined;
+export function literal<T extends Lit>(literal: T) {
 	return primitive<T>(`${literal}`, (v): v is T => v == literal);
 }
 
-export interface Enum {}
-function enum_<T extends Lit>(literals: Array<T>): Enum & Pipe<T, T> {
+function enum_<T extends Lit>(literals: Array<T>) {
 	return primitive<T>(`${literals.join(",")}`, (v: any): v is T =>
 		literals.includes(v),
 	);
