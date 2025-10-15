@@ -4,35 +4,36 @@ function primitive<T>(name: string, typeCheck: (v: T) => v is T) {
 	return pipe({ name, typeCheck }, { name, typeCheck });
 }
 
-export function boolean() {
-	return primitive<boolean>(
-		"boolean",
-		(v): v is boolean => typeof v == "boolean",
-	);
+export interface Boolean {}
+
+export function boolean(): Boolean & Pipe<boolean, boolean> {
+	return primitive("boolean", (v): v is boolean => typeof v == "boolean");
 }
 
-export function undefined() {
-	return primitive<undefined>(
-		"undefined",
-		(v): v is undefined => typeof v == "undefined",
-	);
+export interface Undefined {}
+
+export function undefined(): Undefined & Pipe<undefined, undefined> {
+	return primitive("undefined", (v): v is undefined => typeof v == "undefined");
 }
 
-export function any() {
-	return primitive<any>("any", (v): v is any => true);
+export interface Any {}
+
+export function any(): Any & Pipe<any, any> {
+	return primitive("any", (v): v is any => true);
 }
 
-function null_() {
-	return primitive<null>("null", (v): v is null => v === null);
+export interface Null {}
+
+function null_(): Null & Pipe<null, null> {
+	return primitive("null", (v): v is null => v === null);
 }
 export { null_ as null };
 
-export function number() {
-	interface Numberr extends Pipe<number, number> {
-		min(n: number): this;
-		max(n: number): this;
-	}
-
+export interface Number {
+	min(n: number): this;
+	max(n: number): this;
+}
+export function number(): Number & Pipe<number, number> {
 	return {
 		...primitive<number>("number", (v): v is number => typeof v == "number"),
 
@@ -42,15 +43,14 @@ export function number() {
 		max(n: number) {
 			return this.refine((v) => (v < n ? "" : `must be < ${n}`));
 		},
-	} as Numberr;
+	} as ReturnType<typeof number>;
 }
 
-export function string() {
-	interface Stringg extends Pipe<string, string> {
-		regex(re: RegExp): this;
-		nonempty(): this;
-	}
-
+export interface String {
+	regex(re: RegExp): this;
+	nonempty(): this;
+}
+export function string(): String & Pipe<string, string> {
 	return {
 		...primitive<string>("string", (v): v is string => typeof v == "string"),
 
@@ -60,15 +60,23 @@ export function string() {
 		nonempty() {
 			return this.refine((v) => (v.length ? "" : `must be nonempty`));
 		},
-	} as Stringg;
+	} as ReturnType<typeof string>;
 }
 
-export type Literal = string | number | bigint | boolean | null | undefined;
-export function literal<T extends Literal>(literal: T) {
+export type Lit =
+	| string
+	| number
+	| bigint
+	| boolean
+	| null
+	| undefined;
+export interface Literal {}
+export function literal<T extends Lit>(literal: T): Literal & Pipe<T, T> {
 	return primitive<T>(`${literal}`, (v): v is T => v == literal);
 }
 
-function enum_<T extends Literal>(literals: Array<T>) {
+export interface Enum {}
+function enum_<T extends Lit>(literals: Array<T>): Enum & Pipe<T, T> {
 	return primitive<T>(`${literals.join(",")}`, (v: any): v is T =>
 		literals.includes(v),
 	);

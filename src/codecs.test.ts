@@ -1,19 +1,6 @@
 import { test, expect } from "bun:test";
 import * as v from "./index";
 
-test("2 pipes", () => {
-	const schema = v.codecs.number();
-
-	expect(schema.pipe(v.number().min(5)).decode("3")).toEqual({
-		success: false,
-		errors: {
-			".": [{ input: 3, message: "must be > 5" }],
-		},
-	});
-	expect(schema.decode(undefined)).toEqual({ success: true, output: NaN });
-	expect(schema.decode(null)).toEqual({ success: true, output: NaN });
-});
-
 test("number codec", () => {
 	const schema = v.codecs.number();
 
@@ -40,6 +27,19 @@ test("number codec", () => {
 	expect(schema.encode(1.3)).toEqual({ success: true, output: 1.3 });
 });
 
+test("2 pipes", () => {
+	const schema = v.codecs.number();
+
+	expect(schema.pipe(v.number().min(5)).decode("3")).toEqual({
+		success: false,
+		errors: {
+			".": [{ input: 3, message: "must be > 5" }],
+		},
+	});
+	expect(schema.decode(undefined)).toEqual({ success: true, output: NaN });
+	expect(schema.decode(null)).toEqual({ success: true, output: NaN });
+});
+
 test("array number codec", () => {
 	const schema = v.array(v.codecs.number().min(4).min(5));
 
@@ -58,6 +58,17 @@ test("array number codec", () => {
 		},
 		success: false,
 	});
+});
+
+test("boolean codec", () => {
+	const schema = v.codecs.boolean({ true: ["yes"], false: ["no"] });
+
+	expect(schema.decode("yes")).toEqual({ success: true, output: true });
+	expect(schema.decode("no")).toEqual({ success: true, output: false });
+	expect(schema.decode("")).toEqual({ success: true, output: false });
+	expect(schema.decode("1")).toEqual({ success: true, output: true });
+	expect(schema.decode(false)).toEqual({ success: true, output: false });
+	expect(schema.decode(0)).toEqual({ success: true, output: false });
 });
 
 // test("string codec", () => {

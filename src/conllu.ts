@@ -7,7 +7,9 @@ export const rowId = z.union([
 	// Normal integer like 1, 2
 	intId,
 	// Multiword token like 1-4 or 1.2-4.2
-	z.string(), //.regex([rowNumber, "-", rowNumber]),
+	z
+		.string()
+		.regex(/[1-9][0-9]*\.\d+-\d+\.\d+/),
 ]);
 
 export const boolean = z.codecs.boolean({
@@ -17,34 +19,34 @@ export const boolean = z.codecs.boolean({
 export const primitive = z.union([z.string(), boolean, z.codecs.number()]);
 
 export function recordConllu(delims = { prop: "|", value: "=" }) {
-	return z.codec(
-		z.string(),
-		(v: string, ctx: z.Context) => {
-			if (v == null || v === "_") return {};
+	return z.codecs.custom(z.string(), z.record(z.string(), primitive), {
+		decode(v: string, ctx: z.Context) {
+			if (v == null || v === "_") return { success: true, output: {} };
 
 			const output = v.split(delims.prop).reduce(
 				(acc, cur) => {
 					const [k, v] = cur.split(delims.value);
-					const decoded = primitive.decode(v, ctx);
+					const decoded = primitive.decode(v ?? "", ctx);
 					if ("output" in decoded) acc[k as string] = decoded.output;
 					return acc;
 				},
 				{} as Record<string, z.Output<typeof primitive>>,
 			);
 
-			return { output, errors: ctx.errors };
+			return { success: true, output };
 		},
-		(v: Record<string, z.Output<typeof primitive>>) => {
+		encode(v: Record<string, z.Output<typeof primitive>>) {
 			const entries = Object.entries(v);
-			if (!entries.length) return "_";
+			if (!entries.length) return { success: true, output: "_" };
 
 			return {
+				success: true,
 				output: entries
 					.map(([k, v]) => `${k}${delims.value}${v}`)
 					.join(delims.prop),
 			};
 		},
-	);
+	});
 }
 
 const word = z.object({
@@ -62,9 +64,8 @@ const word = z.object({
 // .partial();
 const columns = Object.keys(word.shape) as (keyof z.Output<typeof word>)[];
 
-const wordConllu = z.codec(
-	z.string(),
-	(v: string, ctx: z.Context) => {
+const wordConllu = z.codecs.custom(z.string(), word, {
+	decode(v, ctx) {
 		const split = v
 			.split("\t")
 			// spec is unclear what a missing _ means
@@ -77,13 +78,16 @@ const wordConllu = z.codec(
 
 		return word.decode(res, ctx);
 	},
-	(v) => ({
-		output: columns
-			.map((c) => v[c])
-			.map((v) => (v == undefined ? "_" : v))
-			.join("\t"),
-	}),
-);
+	encode(v) {
+		return {
+			success: true,
+			output: columns
+				.map((c) => v[c])
+				.map((v) => (v == undefined ? "_" : v))
+				.join("\t"),
+		};
+	},
+});
 
 const sentence = z.object({
 	headers: z.record(z.string(), z.union([z.string(), z.undefined()])),
@@ -96,10 +100,9 @@ const sentence = z.object({
 });
 
 // Makes sure syntax is followed and required fields are included.
-export const normal = z.codec(
-	z.string(),
-	(str: string, ctx) => {
-		const sentences = [];
+export const normal = z.codecs.custom(z.string(), z.array(sentence), {
+	decode(str, ctx) {
+		const output = [];
 
 		const lines = str.split(/\r?\n/);
 		let cur = {
@@ -109,8 +112,8 @@ export const normal = z.codec(
 		let parsingHeaders = true;
 		const headerPrefix = "# ";
 
-		ctx.jsonPath ??= [];
 		const length = ctx.jsonPath.length;
+		ctx.jsonPath[length] = "";
 
 		for (let i = 0; i < lines.length; i++) {
 			ctx.jsonPath[length] = (i + 1).toString();
@@ -118,43 +121,45 @@ export const normal = z.codec(
 
 			if (parsingHeaders && line.startsWith(headerPrefix)) {
 				const [k, v] = line.substring(headerPrefix.length).split("=");
-				cur.headers[k.trim()] = v?.trim();
+				cur.headers[k!.trim()] = v?.trim();
 			} else if (line) {
 				parsingHeaders = false;
 				const decoded = wordConllu.decode(line, ctx);
-				if ("output" in decoded) cur.words.push(decoded.output);
+				if (!decoded.success) return decoded;
+				cur.words.push(decoded.output);
 			} else if (!parsingHeaders && !line) {
 				parsingHeaders = true;
-				sentences.push(cur);
-				cur = {
-					headers: {},
-					words: [],
-				};
+				output.push(cur);
+				cur = { headers: {}, words: [] };
 			}
 		}
 
-		return { output: sentences, errors: ctx.errors };
-	},
-	(sentences) => {
-		// let res = "";
-		// for (const k in s.headers) {
-		// 	const v = s.headers[k];
-		//
-		// 	res += `# ${k.trim()}`;
-		// 	if (v) res += ` = ${v.trim()}`;
-		// 	res += "\n";
-		// }
-		//
-		// res += s.words.join("\n");
-		//
-		// return { output: res };
-		return { output: "" };
-	},
-);
+		ctx.jsonPath.pop();
 
-console.dir(wordConllu.decode(
-	"1	In	in	ADP	IN	_	3	case	_	Verse=1|SourceMap=1"
-), { depth: null });
+		return { success: true, output };
+	},
+	encode(sentences) {
+		let res = "";
+		for (const s of sentences) {
+			for (const k in s.headers) {
+				const v = s.headers[k];
+
+				res += `# ${k.trim()}`;
+				if (v) res += ` = ${v.trim()}`;
+				res += "\n";
+			}
+
+			res += s.words.join("\n");
+		}
+
+		return { success: true, output: res };
+	},
+});
+
+console.dir(
+	wordConllu.decode("1	In	in	ADP	IN	_	3	case	_	Verse=1|SourceMap=1"),
+	{ depth: null },
+);
 
 const text = readFileSync("./test/bsb.conllu", "utf8");
 const parsed = normal.decode(text);

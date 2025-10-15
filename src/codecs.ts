@@ -1,32 +1,29 @@
-import { Context, type Pipe, type Result, type Param, type Output } from "./pipe";
+import type { Context, Pipe, Result } from "./pipe";
 import * as p from "./primitives";
 import * as c from "./containers";
 
-export function custom<A, B, C, O extends Pipe<B, C>>(
-	input: Param<A, B>,
-	output: O,
+export function custom<A, B, C>(
+	input: Pipe<A, B>,
+	output: Pipe<B, C>,
 	codec: {
 		encode?(input: C, ctx: Context): Result<B>;
 		decode?(output: A, ctx: Context): Result<B>;
 	},
-): O & Pipe<A, C> {
+): Pipe<A, C> {
 	const res = output.clone() as any;
-
-	res.i = { ...input };
-	res.i.transform = codec.decode;
+	res.i = { ...input.i, transform: codec.decode };
 	res.o.transform = codec.encode;
-
 	return res;
 }
 
-export function number(parser = parseFloat) {
-	const input = c.union([p.string(), p.number(), p.null(), p.undefined()]);
-	type Input = Output<typeof input>;
-	return {
-		...p.number() as ReturnType<typeof p.number> & Pipe<Input, number>,
-		i: {
-			...input.i,
-			transform(input: Input, ctx: Context) {
+export function number(
+	parser = parseFloat,
+): p.Number & Pipe<string | number | null | undefined, number> {
+	return custom(
+		c.union([p.string(), p.number(), p.null(), p.undefined()]),
+		p.number(),
+		{
+			decode(input, ctx) {
 				if (typeof input == "number") return { success: true, output: input };
 				if (input == null || input.toLowerCase() == "nan")
 					return { success: true, output: NaN };
@@ -38,14 +35,14 @@ export function number(parser = parseFloat) {
 				return { success: false, errors: ctx.errors };
 			},
 		},
-	};
+	) as ReturnType<typeof number>;
 }
 
 export function boolean(opts: {
 	true?: string[];
 	false?: string[];
-}) {
-	return custom(p.any().i, p.boolean(), {
+}): p.Boolean & Pipe<any, boolean> {
+	return custom(p.any(), p.boolean(), {
 		decode(input) {
 			if (typeof input === "string") {
 				if (opts.true?.includes(input)) return { success: true, output: true };
