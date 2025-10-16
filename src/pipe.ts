@@ -21,22 +21,30 @@ export type Type =
 	| "record"
 	| "undefined"
 	| "null";
+export type Check<I, O = never> = {
+	/** The type name */
+	name: string;
+	/** The first check to run */
+	typeCheck(v: any): v is I;
+	/** The second check to run */
+	checks?: Array<(data: I, ctx: Context) => string>;
+	/** Optional transform for pipe to run at end. Useful for containers */
+	transform?(v: I, ctx: Context): Result<O>;
+};
+
+function cloneCheck<I, O>(c: Check<I, O>): Check<I, O> {
+	return { ...c, checks: c.checks ? [...c.checks] : undefined };
+}
+
 /** During encoding, decoding, or validation. */
 export class Context {
 	jsonPath: string[] = [];
 	errors: Errors = {};
-	/**
-	 * It's possible to properly pass down this type through containers, but
-	 * I cannot figure out how to do it.
-	 * May you, dear reader, find more success.
-	 */
-	userdata?: any;
 
 	clone(): Context {
 		const res = new Context();
-		res.jsonPath =[...this.jsonPath];
+		res.jsonPath = [...this.jsonPath];
 		res.errors = { ...this.errors };
-		res.userdata = this.userdata;
 		return res;
 	}
 
@@ -44,62 +52,36 @@ export class Context {
 		const key = "." + this.jsonPath.join(".");
 		this.errors ??= {};
 		this.errors[key] ??= [];
-		// Probably should find a way to properly clone userdata.
-		if (this.userdata) error.userdata = { ...this.userdata };
 		this.errors[key].push(error);
 	}
 
-	validateType<T>(
-		type: string,
-		value: any,
-		isType: (data: any) => data is T,
-	): value is T {
-		if (!isType(value)) {
-			this.addError({ input: value, message: `not type ${type}` });
-			return false;
+	runCheck<I, O>(value: any, check: Check<I, O>): Result<I> {
+		if (!check.typeCheck(value)) {
+			this.addError({ input: value, message: `not type ${check.name}` });
+			return { success: false, errors: this.errors };
 		}
-		return true;
-	}
-
-	validate<T>(
-		checks: Array<(data: T, ctx: Context) => string>,
-		output: any,
-	): output is T {
-		let res = true;
-		for (const check of checks) {
-			const message = check(output, this);
+		let success = true;
+		for (const c of check.checks ?? []) {
+			const message = c(value, this);
 			if (message) {
-				this.addError({ input: output, message });
-				res = false;
+				this.addError({ input: value, message });
+				success = false;
 			}
 		}
-		return res;
+		if (!success) return { success, errors: this.errors };
+		return { success, output: value };
 	}
 }
 
-export interface Codec<I, O> {
-	decode?: (input: I, ctx: Context) => Result<O> | undefined;
-	encode?: (output: O, ctx: Context) => Result<I>;
-}
-
-export type Param<A, B> = {
-	name: string;
-	typeCheck?(v: any): v is A;
-	transform?(v: A, ctx: Context): Result<B>;
-};
-
 export interface Pipe<I = any, O = any> {
-	i: Required<Param<I, O>>;
-	o: Required<Param<O, I>>;
+	i: Check<I, O>;
+	o: Check<O, I>;
 
-	/** For validation */
-	checks: Array<(data: O, ctx: Context) => string>;
 	/** Next pipeline to run. */
 	pipes: Array<Pipe<any, any>>;
 
 	/** For chaining in refine and pipe */
 	clone(): this;
-
 	/** Add a check */
 	refine(validator: (data: O) => string): this;
 	/** Add next runner */
@@ -107,92 +89,82 @@ export interface Pipe<I = any, O = any> {
 
 	decodeAny(input: any, ctx?: Context): Result<O>;
 	encodeAny(output: any, ctx?: Context): Result<I>;
-	// For type checking
+
 	decode(input: I, ctx?: Context): Result<O>;
 	encode(output: O, ctx?: Context): Result<I>;
 }
 
-function defaultParam<I, O>(p: Param<I, O>): Required<Param<I, O>> {
-	const copy = { ...p };
-	copy.typeCheck ??= (v: any): v is I => true;
-	copy.transform ??= (output: any) => ({ success: true, output });
-	return copy as Required<Param<I, O>>;
-}
-
 export function pipe<I = any, O = any>(
-	inputParam: Param<I, O>,
-	outputParam: Param<O, I>,
+	input: Check<I, O>,
+	output: Check<O, I>,
 ): Pipe<I, O> {
 	return {
-		checks: [],
+		i: input,
+		o: output,
 		pipes: [],
-
-		i: defaultParam(inputParam),
-		o: defaultParam(outputParam),
 
 		clone(): Pipe<I, O> {
 			return {
 				...this,
-				i: { ...this.i },
-				o: { ...this.o },
+				i: cloneCheck(this.i),
+				o: cloneCheck(this.o),
+				pipes: [...this.pipes],
 			};
 		},
 
 		refine(validator: (data: O, ctx: Context) => string): Pipe<I, O> {
-			return Object.assign(this.clone(), {
-				checks: this.checks.concat(validator),
-			});
+			const res = this.clone();
+			res.o.checks ??= [];
+			res.o.checks.push(validator);
+			return res;
 		},
 
 		pipe<O2>(pipe: Pipe<O, O2>): Pipe<I, O2> {
-			return Object.assign(this.clone(), {
-				pipes: this.pipes.concat(pipe),
-			}) as any;
+			const res: Pipe<any, any> = this.clone();
+			res.pipes.push(pipe);
+			return res;
 		},
 
 		decodeAny(input: any, ctx = new Context()): Result<O> {
-			if (!ctx.validateType(this.i.name, input, this.i.typeCheck))
-				return { success: false, errors: ctx.errors };
-
-			let res = this.i.transform?.(input, ctx) ?? {
-				success: true,
-				output: input,
-			};
-			if (
-				!res.success ||
-				!ctx.validateType(this.o.name, res.output, this.o.typeCheck) ||
-				!ctx.validate(this.checks, res.output)
-			)
-				return { success: false, errors: ctx.errors };
-
+			// 1. Verify input
+			let res: Result<any> = ctx.runCheck(input, this.i);
+			if (!res.success) return res;
+			// 2. Transform input to output
+			if (this.i.transform) {
+				res = this.i.transform(res.output, ctx);
+				if (!res.success) return res;
+			}
+			// 3. Verify output
+			res = ctx.runCheck(res.output, this.o);
+			if (!res.success) return res;
+			// 4. Next
 			for (const p of this.pipes) {
 				res = p.decode(res.output, ctx);
 				if (!res.success) return res;
 			}
-			return res as { success: true; output: O };
+			return res;
 		},
 		decode(input: I, ctx = new Context()): Result<O> {
 			return this.decodeAny(input, ctx);
 		},
 
 		encodeAny(output: any, ctx = new Context()): Result<I> {
-			if (
-				!ctx.validateType(this.o.name, output, this.o.typeCheck) ||
-				!ctx.validate(this.checks, output)
-			)
-				return { success: false, errors: ctx.errors };
-
-			let res = this.o.transform?.(output, ctx) ?? {
-				success: true,
-				output,
-			};
-			if (!res.success) return { success: false, errors: ctx.errors };
-
-			for (const p of this.pipes) {
-				res = p.encode(res.output, ctx);
+			// 1. Next
+			let res: Result<any> = { success: true, output };
+			for (let i = this.pipes.length - 1; i >= 0; i--) {
+				res = this.pipes[i]!.encodeAny(res.output, ctx);
 				if (!res.success) return res;
 			}
-			return res as { success: true; output: I };
+			// 2. Verify output
+			res = ctx.runCheck(res.output, this.o);
+			if (!res.success) return res;
+			// 3. Transform output to input
+			if (this.o.transform) {
+				res = this.o.transform(res.output, ctx);
+				if (!res.success) return res;
+			}
+			// 4. Verify input
+			return ctx.runCheck(res.output, this.i);
 		},
 		encode(output: O, ctx = new Context()): Result<I> {
 			return this.encodeAny(output, ctx);

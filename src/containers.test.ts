@@ -17,6 +17,7 @@ test("array", () => {
 
 test("array failed element", () => {
 	const schema = v.array(v.number().min(4).min(5));
+	console.log(v.number().min(4).min(5).o.checks)
 
 	expect(schema.decode(["5", 5])).toEqual({
 		success: false,

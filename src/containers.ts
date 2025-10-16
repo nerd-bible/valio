@@ -83,12 +83,12 @@ export function object<T extends globalThis.Record<string, Pipe<any, any>>>(
 }
 
 export interface Record<K extends string | number, V> {
-	keyPipe: Pipe<unknown, K>,
-	valPipe: Pipe<unknown, V>,
+	keyPipe: Pipe<any, K>,
+	valPipe: Pipe<any, V>,
 }
 export function record<K extends string | number, V>(
-	keyPipe: Pipe<unknown, K>,
-	valPipe: Pipe<unknown, V>,
+	keyPipe: Pipe<any, K>,
+	valPipe: Pipe<any, V>,
 ): Record<K, V> & Pipe<object, globalThis.Record<K, V>> {
 	const res = pipe<object, globalThis.Record<K, V>>(
 		{
