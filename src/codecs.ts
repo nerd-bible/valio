@@ -2,14 +2,14 @@ import type { Context, Pipe, Result } from "./pipe";
 import * as p from "./primitives";
 import * as c from "./containers";
 
-export function custom<A, B, C>(
-	input: Pipe<A, B>,
-	output: Pipe<B, C>,
+export function custom<I, O>(
+	input: Pipe<I, any>,
+	output: Pipe<any, O>,
 	codec: {
-		encode?(input: C, ctx: Context): Result<B>;
-		decode?(output: A, ctx: Context): Result<B>;
+		encode?(input: O, ctx: Context): Result<I>;
+		decode?(output: I, ctx: Context): Result<O>;
 	},
-): Pipe<A, C> {
+): Pipe<I, O> {
 	const res = output.clone() as any;
 	res.i = { ...input.i, transform: codec.decode };
 	res.o.transform = codec.encode;
