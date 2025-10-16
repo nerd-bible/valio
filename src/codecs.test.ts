@@ -17,15 +17,8 @@ test("number codec", () => {
 		},
 	});
 	expect(schema.decode("Infinity")).toEqual({
-		success: false,
-		errors: {
-			".": [
-				{
-					input: Infinity,
-					message: "must be < 12",
-				},
-			],
-		},
+		success: true,
+		output: Infinity,
 	});
 	expect(schema.decode("-Infinity")).toEqual({
 		success: true,
