@@ -20,20 +20,25 @@ export const primitive = z.union([z.string(), boolean, z.codecs.number()]);
 
 export function recordConllu(delims = { prop: "|", value: "=" }) {
 	return z.codecs.custom(z.string(), z.record(z.string(), primitive), {
-		decode(v: string, ctx: z.Context) {
-			if (v == null || v === "_") return { success: true, output: {} };
+		decode(value: string, ctx: z.Context) {
+			let success = true;
+			const output: Record<string, z.Output<typeof primitive>> = {};
+			const length = ctx.jsonPath.length;
 
-			const output = v.split(delims.prop).reduce(
-				(acc, cur) => {
-					const [k, v] = cur.split(delims.value);
-					const decoded = primitive.decode(v ?? "", ctx);
-					if ("output" in decoded) acc[k as string] = decoded.output;
-					return acc;
-				},
-				{} as Record<string, z.Output<typeof primitive>>,
-			);
+			ctx.jsonPath[length] = "";
+			for (const cur of value.split(delims.prop)) {
+				let [k, v] = cur.split(delims.value);
+				if (!k) continue;
+				v ??= "";
+				ctx.jsonPath[length] = k;
+				const decoded = primitive.decode(v, ctx);
+				if (decoded.success) output[k] = decoded.output;
+				else success = false;
+			}
+			ctx.jsonPath.pop();
 
-			return { success: true, output };
+			if (!success) return { success, errors: ctx.errors };
+			return { success, output };
 		},
 		encode(v: Record<string, z.Output<typeof primitive>>) {
 			const entries = Object.entries(v);
@@ -55,11 +60,11 @@ const word = z.object({
 	lemma: z.string(),
 	upos: z.string(),
 	xpos: z.string(),
-	feats: z.string(), // recordConllu(),
+	feats: recordConllu(),
 	head: z.codecs.number(),
 	deprel: z.string(),
-	deps: z.string(), //recordConllu({ prop: "|", value: ":" }), // .pipe(z.record(rowId, primitive)),
-	misc: z.string(), //recordConllu(),
+	deps: recordConllu({ prop: "|", value: ":" }), //.pipe(z.record(rowId, primitive)),
+	misc: recordConllu(),
 });
 // .partial();
 const columns = Object.keys(word.shape) as (keyof z.Output<typeof word>)[];
@@ -78,14 +83,19 @@ const wordConllu = z.codecs.custom(z.string(), word, {
 
 		return word.decode(res, ctx);
 	},
-	encode(v) {
-		return {
-			success: true,
-			output: columns
-				.map((c) => v[c])
-				.map((v) => (v == undefined ? "_" : v))
-				.join("\t"),
-		};
+	encode(value) {
+		let output = "";
+		for (const c of columns) {
+			const v = value[c];
+			if (v == "") output += "_";
+			else {
+				const encoded = word.shape[c].encode(v as never);
+				if (!encoded.success) return encoded;
+				output += encoded.output;
+			}
+			if (c != "misc") output += "\t";
+		}
+		return { success: true, output };
 	},
 });
 
@@ -139,20 +149,25 @@ export const normal = z.codecs.custom(z.string(), z.array(sentence), {
 		return { success: true, output };
 	},
 	encode(sentences) {
-		let res = "";
+		let output = "";
 		for (const s of sentences) {
 			for (const k in s.headers) {
 				const v = s.headers[k];
 
-				res += `# ${k.trim()}`;
-				if (v) res += ` = ${v.trim()}`;
-				res += "\n";
+				output += `# ${k.trim()}`;
+				if (v) output += ` = ${v.trim()}`;
+				output += "\n";
 			}
 
-			res += s.words.join("\n");
+			for (const w of s.words) {
+				const encoded = wordConllu.encode(w);
+				if (!encoded.success) return encoded;
+				output += encoded.output;
+				output += "\n";
+			}
 		}
 
-		return { success: true, output: res };
+		return { success: true, output: output };
 	},
 });
 
@@ -164,4 +179,7 @@ console.dir(
 const text = readFileSync("./test/bsb.conllu", "utf8");
 const parsed = normal.decode(text);
 console.dir(parsed, { depth: null });
-// console.log(normal.encode(parsed.data!).data);
+if (parsed.success) {
+	const reencoded = normal.encode(parsed.output);
+	if (reencoded.success) console.log(reencoded.output);
+}

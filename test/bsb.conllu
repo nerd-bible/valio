@@ -1,20 +1,42 @@
-# generator = UDPipe 2, https://lindat.mff.cuni.cz/services/udpipe
-# udpipe_model = english-gum-ud-2.15-241121
-# udpipe_model_licence = CC BY-NC-SA
-# newdoc
 # newpar
-# sent_id = 1
-# text = In the beginning God created the heavens and the earth.
-# h1 = The Creation
-# chapter = 1
-1	In	in	ADP	IN	_	3	case	_	Verse=1|SourceMap=1
-2	the	the	DET	DT	Definite=Def|PronType=Art	3	det	_	SourceMap=1
-3	beginning	beginning	NOUN	NN	Number=Sing	5	obl	_	SourceMap=1
-4	God	God	PROPN	NNP	Number=Sing	5	nsubj	_	SourceMap=2
-5	created	create	VERB	VBD	Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	0	root	_	SourceMap=4
-6	the	the	DET	DT	Definite=Def|PronType=Art	7	det	_	SourceMap=5
-7	heavens	heaven	NOUN	NNS	Number=Plur	5	obj	_	SourceMap=5
-8	and	and	CCONJ	CC	_	10	cc	_	SourceMap=6
-9	the	the	DET	DT	Definite=Def|PronType=Art	10	det	_	SourceMap=7
-10	earth	earth	NOUN	NN	Number=Sing	7	conj	_	SpaceAfter=No|SourceMap=7
-11	.	.	PUNCT	.	_	5	punct	_	SourceMap=7
+# newpar_block = p (8 s)
+# sent_id = GUM_academic_exposure-2
+# s_type = decl
+# s_prominence = 3
+# transition = null
+# text = Research on adult-learned second language (L2) has provided considerable insight into the neurocognitive mechanisms underlying the learning and processing of L2 grammar [1]–[11].
+1	Research	research	NOUN	NN	Number=Sing	12	nsubj	12:nsubj	Discourse=context-background:2->14:2:sem-synym-4-8,108-109|Entity=(2-abstract-new-nnnns-cf2-1-coref
+2	on	on	ADP	IN	_	7	case	7:case	_
+3	adult	adult	NOUN	NN	Number=Sing	5	compound	5:compound	Entity=(3-abstract-new-sssss-cf1-5-coref|SpaceAfter=No|XML=<w>
+4	-	-	PUNCT	HYPH	_	3	punct	3:punct	SpaceAfter=No
+5	learned	learn	VERB	VBN	Tense=Past|VerbForm=Part|Voice=Pass	7	amod	7:amod	MSeg=learn-ed|XML=</w>
+6	second	second	ADJ	JJ	Degree=Pos|NumForm=Word|NumType=Ord	7	amod	7:amod	_
+7	language	language	NOUN	NN	Number=Sing	1	nmod	1:nmod:on	Entity=3)
+8	(	(	PUNCT	-LRB-	_	9	punct	9:punct	Discourse=restatement-partial:3->2:0:sem-synym-4-8,10+grf-prn-9,11|SpaceAfter=No
+9	L2	L2	NOUN	NN	Number=Sing	7	appos	7:appos	Entity=(3-abstract-giv:act-sssss-cf1-1-appos)|SpaceAfter=No
+10	)	)	PUNCT	-RRB-	_	9	punct	9:punct	Entity=2)
+11	has	have	AUX	VBZ	Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	12	aux	12:aux	Discourse=same-unit_m:4->2:1:_|MSeg=ha-s
+12	provided	provide	VERB	VBN	Tense=Past|VerbForm=Part	0	root	0:root	MSeg=provid-ed
+13	considerable	considerable	ADJ	JJ	Degree=Pos	14	amod	14:amod	Entity=(4-abstract-new-nnnnn-cf4-2-sgl|MSeg=consider-able
+14	insight	insight	NOUN	NN	Number=Sing	12	obj	12:obj	MSeg=in-sigh-t
+15	into	into	ADP	IN	_	18	case	18:case	MSeg=in-to
+16	the	the	DET	DT	Definite=Def|PronType=Art	18	det	18:det	Entity=(5-abstract-new-nnnnn-cf5-3-sgl
+17	neurocognitive	neurocognitive	ADJ	JJ	Degree=Pos	18	amod	18:amod	MSeg=neuro-cognit-ive
+18	mechanisms	mechanism	NOUN	NNS	Number=Plur	14	nmod	14:nmod:into	MSeg=mechan-ism-s
+19	underlying	underlie	VERB	VBG	VerbForm=Ger	18	acl	18:acl	Discourse=elaboration-attribute:5->4:0:syn-mdf-19+syn-nmn-20|MSeg=under-ly-ing
+20	the	the	DET	DT	Definite=Def|PronType=Art	21	det	21:det	Entity=(6-abstract-new-nnnnn-cf3-2,4-sgl
+21	learning	learning	NOUN	NN	Number=Sing	19	obj	19:obj	MSeg=learn-ing
+22	and	and	CCONJ	CC	_	23	cc	23:cc	_
+23	processing	processing	NOUN	NN	Number=Sing	21	conj	19:obj|21:conj:and	MSeg=process-ing
+24	of	of	ADP	IN	_	26	case	26:case	_
+25	L2	L2	NOUN	NN	Number=Sing	26	compound	26:compound	Entity=(7-abstract-new-nnnss-cf6-2-coref(3-abstract-giv:act-sssss-cf1-1-coref)
+26	grammar	grammar	NOUN	NN	Number=Sing	21	nmod	21:nmod:of	Entity=7)6)5)4)
+27	[	[	PUNCT	-LRB-	_	28	punct	28:punct	Discourse=explanation-evidence:6->2:2:grf-prn-28,30,32,34|SpaceAfter=No|XML=<w>
+28	1	1	NUM	CD	NumForm=Digit|NumType=Card	12	dep	12:dep	Entity=(8-abstract-new-nnnnn-cf7-1-sgl)|SpaceAfter=No
+29	]	]	PUNCT	-RRB-	_	28	punct	28:punct	SpaceAfter=No
+30	–	-	SYM	SYM	_	32	case	32:case	SpaceAfter=No
+31	[	[	PUNCT	-LRB-	_	32	punct	32:punct	SpaceAfter=No
+32	11	11	NUM	CD	NumForm=Digit|NumType=Card	28	nmod	28:nmod:to	Entity=(9-abstract-new-nnnnn-cf8-1-sgl)|SpaceAfter=No
+33	]	]	PUNCT	-RRB-	_	32	punct	32:punct	SpaceAfter=No
+34	.	.	PUNCT	.	_	12	punct	12:punct	XML=</w>
+
