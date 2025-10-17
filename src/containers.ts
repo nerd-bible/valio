@@ -188,7 +188,6 @@ export function object<
 				ctx.jsonPath.length = length;
 
 				if (!success) return { success, errors: ctx.errors };
-			console.log("huh", output);
 				return { success, output: output as ObjectOutput<T> };
 			},
 		},

@@ -17,7 +17,6 @@ test("array", () => {
 
 test("array failed element", () => {
 	const schema = v.array(v.number().gt(4).gt(5));
-	console.log(v.number().gt(4).gt(5).o.checks)
 
 	expect(schema.decode(["5", 5])).toEqual({
 		success: false,
