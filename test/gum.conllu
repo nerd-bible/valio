@@ -1,0 +1,10 @@
+# newpar
+# newpar_block = p (8 s)
+# sent_id = GUM_academic_exposure-2
+# s_type = decl
+# s_prominence = 3
+# transition = null
+# text = Research on adult-learned second language (L2) has provided considerable insight into the neurocognitive mechanisms underlying the learning and processing of L2 grammar [1]–[11].
+1	Research	_	NOUN	NN	Number=Sing	12	nsubj	12:nsubj	Discourse=context-background:2->14:2:sem-synym-4-8,108-109|Entity=(2-abstract-new-nnnns-cf2-1-coref
+2	on	on	ADP	IN	_	7	case	7:case	_
+3	adult	adult	NOUN	NN	Number=Sing	5	compound	5:compound	Entity=(3-abstract-new-sssss-cf1-5-coref|SpaceAfter=No|XML=<w>

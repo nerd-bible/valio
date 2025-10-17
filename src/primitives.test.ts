@@ -15,7 +15,7 @@ test("custom validator", () => {
 });
 
 test("double min", () => {
-	const schema = v.number().min(5).min(2);
+	const schema = v.number().gt(5).gt(2);
 
 	expect(schema.decode(3)).toEqual({
 		success: false,

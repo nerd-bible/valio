@@ -16,8 +16,8 @@ test("array", () => {
 });
 
 test("array failed element", () => {
-	const schema = v.array(v.number().min(4).min(5));
-	console.log(v.number().min(4).min(5).o.checks)
+	const schema = v.array(v.number().gt(4).gt(5));
+	console.log(v.number().gt(4).gt(5).o.checks)
 
 	expect(schema.decode(["5", 5])).toEqual({
 		success: false,
@@ -29,7 +29,7 @@ test("array failed element", () => {
 });
 
 test("object", () => {
-	const o = v.object({ foo: v.number().min(4) });
+	const o = v.object({ foo: v.number().gt(4) });
 	type O = v.Output<typeof o>;
 
 	expect(o.decode({ foo: 10 })).toEqual({
@@ -51,7 +51,7 @@ test("object", () => {
 
 test("nested object", () => {
 	const o = v.object({
-		foo: v.object({ bar: v.number().min(4) }),
+		foo: v.object({ bar: v.number().gt(4) }),
 	});
 
 	expect(o.decode({ foo: { bar: 10 } })).toEqual({

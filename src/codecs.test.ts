@@ -5,7 +5,7 @@ test("number codec", () => {
 	const schema = v.codecs.number();
 
 	expect(schema.decode("13")).toEqual({ success: true, output: 13 });
-	expect(schema.max(12).decode("13")).toEqual({
+	expect(schema.lt(12).decode("13")).toEqual({
 		success: false,
 		errors: { ".": [{ input: 13, message: "must be < 12" }] },
 	});
@@ -30,7 +30,7 @@ test("number codec", () => {
 test("2 pipes", () => {
 	const schema = v.codecs.number();
 
-	expect(schema.pipe(v.number().min(5)).decode("3")).toEqual({
+	expect(schema.pipe(v.number().gt(5)).decode("3")).toEqual({
 		success: false,
 		errors: {
 			".": [{ input: 3, message: "must be > 5" }],
@@ -41,7 +41,7 @@ test("2 pipes", () => {
 });
 
 test("array number codec", () => {
-	const schema = v.array(v.codecs.number().min(4).min(5));
+	const schema = v.array(v.codecs.number().gt(4).gt(5));
 
 	expect(schema.decode(["10a", "11b"])).toEqual({
 		success: true,

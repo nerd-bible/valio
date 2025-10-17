@@ -30,18 +30,26 @@ function null_(): Null & Pipe<null, null> {
 export { null_ as null };
 
 export interface Number {
-	min(n: number): this;
-	max(n: number): this;
+	gt(n: number): this;
+	gte(n: number): this;
+	lt(n: number): this;
+	lte(n: number): this;
 }
 export function number(): Number & Pipe<number, number> {
 	return {
 		...primitive<number>("number", (v): v is number => typeof v == "number"),
 
-		min(n: number) {
+		gt(n: number) {
 			return this.refine((v) => (v > n ? "" : `must be > ${n}`));
 		},
-		max(n: number) {
+		gte(n: number) {
+			return this.refine((v) => (v >= n ? "" : `must be >= ${n}`));
+		},
+		lt(n: number) {
 			return this.refine((v) => (v < n ? "" : `must be < ${n}`));
+		},
+		lte(n: number) {
+			return this.refine((v) => (v <= n ? "" : `must be <= ${n}`));
 		},
 	} as ReturnType<typeof number>;
 }

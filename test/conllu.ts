@@ -1,8 +1,9 @@
-import * as z from "./index";
+import { join } from "node:path";
+import * as z from "../src/index";
 import { readFileSync } from "node:fs";
 
-export const rowNumber = z.number().min(0);
-export const intId = z.codecs.number().min(0);
+export const rowNumber = z.number().gt(0);
+export const intId = z.codecs.number().gt(0);
 export const rowId = z.union([
 	// Normal integer like 1, 2
 	intId,
@@ -25,7 +26,6 @@ export function recordConllu(delims = { prop: "|", value: "=" }) {
 			const output: Record<string, z.Output<typeof primitive>> = {};
 			const length = ctx.jsonPath.length;
 
-			ctx.jsonPath[length] = "";
 			for (const cur of value.split(delims.prop)) {
 				let [k, v] = cur.split(delims.value);
 				if (!k) continue;
@@ -35,7 +35,7 @@ export function recordConllu(delims = { prop: "|", value: "=" }) {
 				if (decoded.success) output[k] = decoded.output;
 				else success = false;
 			}
-			ctx.jsonPath.pop();
+			ctx.jsonPath.length = length;
 
 			if (!success) return { success, errors: ctx.errors };
 			return { success, output };
@@ -63,10 +63,11 @@ const word = z.object({
 	feats: recordConllu(),
 	head: z.codecs.number(),
 	deprel: z.string(),
-	deps: recordConllu({ prop: "|", value: ":" }), //.pipe(z.record(rowId, primitive)),
+	deps: recordConllu({ prop: "|", value: ":" }).pipe(
+		z.record(z.codecs.number().gte(0), primitive),
+	),
 	misc: recordConllu(),
 });
-// .partial();
 const columns = Object.keys(word.shape) as (keyof z.Output<typeof word>)[];
 
 const wordConllu = z.codecs.custom(z.string(), word, {
@@ -100,12 +101,12 @@ const wordConllu = z.codecs.custom(z.string(), word, {
 });
 
 const sentence = z.object({
-	headers: z.record(z.string(), z.union([z.string(), z.undefined()])),
-	// .object({
-	// 	sent_id: z.string().nonempty(),
-	// 	text: z.string().nonempty(),
-	// })
-	// .catchall(z.union([z.string(), z.undefined()])),
+	headers: z
+		.object({
+			sent_id: z.string().nonempty(),
+			text: z.string().nonempty(),
+		})
+		.extend(z.string(), z.union([z.string(), z.undefined()])),
 	words: z.array(word),
 });
 
@@ -116,15 +117,13 @@ export const normal = z.codecs.custom(z.string(), z.array(sentence), {
 
 		const lines = str.split(/\r?\n/);
 		let cur = {
-			headers: {},
+			headers: { sent_id: "", text: "" },
 			words: [],
 		} as z.Output<typeof sentence>;
 		let parsingHeaders = true;
 		const headerPrefix = "# ";
 
 		const length = ctx.jsonPath.length;
-		ctx.jsonPath[length] = "";
-
 		for (let i = 0; i < lines.length; i++) {
 			ctx.jsonPath[length] = (i + 1).toString();
 			const line = lines[i]!;
@@ -140,11 +139,10 @@ export const normal = z.codecs.custom(z.string(), z.array(sentence), {
 			} else if (!parsingHeaders && !line) {
 				parsingHeaders = true;
 				output.push(cur);
-				cur = { headers: {}, words: [] };
+				cur = { headers: { sent_id: "", text: "" }, words: [] };
 			}
 		}
-
-		ctx.jsonPath.pop();
+		ctx.jsonPath.length = length;
 
 		return { success: true, output };
 	},
@@ -172,11 +170,13 @@ export const normal = z.codecs.custom(z.string(), z.array(sentence), {
 });
 
 console.dir(
-	wordConllu.decode("1	In	in	ADP	IN	_	3	case	_	Verse=1|SourceMap=1"),
+	wordConllu.decode(
+		"1	In	in	ADP	IN	_	3	case	3:foo	Verse=1|SourceMap=1",
+	),
 	{ depth: null },
 );
 
-const text = readFileSync("./test/bsb.conllu", "utf8");
+const text = readFileSync(join(import.meta.dir, "gum.conllu"), "utf8");
 const parsed = normal.decode(text);
 console.dir(parsed, { depth: null });
 if (parsed.success) {
