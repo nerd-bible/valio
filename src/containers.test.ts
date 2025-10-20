@@ -77,6 +77,7 @@ test("nested object", () => {
 test("partial object", () => {
 	const o = v.object({ foo: v.number().gt(4) }).partial({ foo: true });
 	type O = v.Output<typeof o>;
+
 	expect(o.decode({ foo: 10 })).toEqual({
 		success: true,
 		output: { foo: 10 } as O,

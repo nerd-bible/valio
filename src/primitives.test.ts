@@ -3,6 +3,7 @@ import * as v from "./index";
 
 test("custom validator", () => {
 	const schema = v.number().refine((n) => (n == 5 ? "" : "must be 5"));
+	console.log(v.number());
 
 	expect(schema.decode(3)).toEqual({
 		success: false,

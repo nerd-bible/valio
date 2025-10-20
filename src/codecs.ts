@@ -11,16 +11,16 @@ export function custom<I, O>(
 	},
 ): Pipe<I, O> {
 	const res = output.clone() as any;
-	res.i = { ...input.i, transform: codec.decode };
+	res.i = input.i.clone();
+	res.i.transform = codec.decode;
 	res.o.transform = codec.encode;
 	return res;
 }
 
-type A = Pipe<any, any> & Pipe<string | number, number>;
-
 export function number(
 	parser = parseFloat,
-): p.Number & Pipe<string | number | null | undefined, number> {
+): ReturnType<typeof p.number> &
+	Pipe<string | number | null | undefined, number> {
 	return custom(
 		c.union([p.string(), p.number(), p.null(), p.undefined()]),
 		p.number(),
@@ -33,7 +33,7 @@ export function number(
 				const output = parser(input);
 				if (!isNaN(output)) return { success: true, output };
 
-				ctx.addError({ input, message: "could not parse number" });
+				ctx.pushError({ input, message: "could not parse number" });
 				return { success: false, errors: ctx.errors };
 			},
 		},
@@ -43,7 +43,7 @@ export function number(
 export function boolean(opts: {
 	true?: string[];
 	false?: string[];
-}): p.Boolean & Pipe<any, boolean> {
+}): ReturnType<typeof p.boolean> & Pipe<any, boolean> {
 	return custom(p.any(), p.boolean(), {
 		decode(input) {
 			if (typeof input === "string") {

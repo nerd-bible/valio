@@ -1,90 +1,94 @@
-import { pipe, type Pipe } from "./pipe";
+import { Check, Pipe } from "./pipe";
 
 function primitive<T>(name: string, typeCheck: (v: T) => v is T) {
-	return pipe({ name, typeCheck }, { name, typeCheck });
+	const check = new Check(name, typeCheck);
+	return new Pipe(check, check);
 }
 
-export interface Boolean<I = boolean> extends Pipe<I, boolean> {}
-export function boolean(): Boolean {
-	return primitive("boolean", (v): v is boolean => typeof v == "boolean");
+export function boolean() {
+	return primitive<boolean>(
+		"boolean",
+		(v): v is boolean => typeof v == "boolean",
+	);
 }
 
-export interface Undefined<I = undefined> extends Pipe<I, undefined> {}
-export function undefined(): Undefined {
-	return primitive("undefined", (v): v is undefined => typeof v == "undefined");
+export function undefined() {
+	return primitive<undefined>(
+		"undefined",
+		(v): v is undefined => typeof v == "undefined",
+	);
 }
 
-export interface Any<I = any> extends Pipe<I, any> {}
-export function any(): Any {
-	return primitive("any", (v): v is any => true);
+export function any() {
+	return primitive<any>("any", (v): v is any => true);
 }
 
-export interface Null<I = null> extends Pipe<I, null> {}
-function null_(): Null {
-	return primitive("null", (v): v is null => v === null);
+function null_() {
+	return primitive<null>("null", (v): v is null => v === null);
 }
 export { null_ as null };
 
-export interface Number<I = number> extends Pipe<I, number> {
-	gt(n: number): this;
-	gte(n: number): this;
-	lt(n: number): this;
-	lte(n: number): this;
-}
-export function number(): Number {
-	return {
-		...primitive<number>("number", (v): v is number => typeof v == "number"),
-
-		gt(n: number) {
-			return this.refine((v) => (v > n ? "" : `must be > ${n}`));
-		},
-		gte(n: number) {
-			return this.refine((v) => (v >= n ? "" : `must be >= ${n}`));
-		},
-		lt(n: number) {
-			return this.refine((v) => (v < n ? "" : `must be < ${n}`));
-		},
-		lte(n: number) {
-			return this.refine((v) => (v <= n ? "" : `must be <= ${n}`));
-		},
-	} as ReturnType<typeof number>;
+class Comparable<I, O> extends Pipe<I, O> {
+	gt(n: O) {
+		return this.refine((v) => (v > n ? "" : `must be > ${n}`));
+	}
+	gte(n: O) {
+		return this.refine((v) => (v >= n ? "" : `must be >= ${n}`));
+	}
+	lt(n: O) {
+		return this.refine((v) => (v < n ? "" : `must be < ${n}`));
+	}
+	lte(n: O) {
+		return this.refine((v) => (v <= n ? "" : `must be <= ${n}`));
+	}
 }
 
-export interface String<I = string> extends Pipe<I, string> {
-	regex(re: RegExp): this;
-	nonempty(): this;
+class Number extends Comparable<number, number> {
+	constructor() {
+		const check = new Check("number", (v) => typeof v == "number");
+		super(check, check);
+	}
+}
+export function number() {
+	return new Number();
+}
+
+class String extends Comparable<string, string> {
+	constructor() {
+		const check = new Check("string", (v) => typeof v == "string");
+		super(check, check);
+	}
+
+	regex(re: RegExp) {
+		return this.refine((v) => (v.match(re) ? "" : `must match ${re.source}`));
+	}
 }
 export function string(): String {
-	return {
-		...primitive<string>("string", (v): v is string => typeof v == "string"),
-
-		regex(re: RegExp) {
-			return this.refine((v) => (v.match(re) ? "" : `must match ${re.source}`));
-		},
-		nonempty() {
-			return this.refine((v) => (v.length ? "" : `must be nonempty`));
-		},
-	} as ReturnType<typeof string>;
+	return new String();
 }
 
 export type Lit = string | number | bigint | boolean | null | undefined;
-export interface Literal<T extends Lit, I = T> extends Pipe<I, T> {
-	literal: T;
+
+class Literal<T extends Lit> extends Pipe<T, T> {
+	constructor(public literal: T) {
+		const check = new Check(`${literal}`, (v): v is T => v == literal);
+		super(check, check);
+	}
 }
-export function literal<T extends Lit>(literal: T): Literal<T> {
-	const res = primitive<T>(
-		`${literal}`,
-		(v): v is T => v == literal,
-	) as Literal<T>;
-	res.literal = literal;
-	return res;
+export function literal<T extends Lit>(literal: T) {
+	return new Literal(literal);
 }
 
-export interface Enum<T extends Lit, I = T> extends Pipe<I, T> {}
-function enum_<T extends Lit>(literals: Array<T>): Enum<T> {
-	return primitive<T>(`${literals.join(",")}`, (v: any): v is T =>
-		literals.includes(v),
-	);
+class Enum<T extends Lit> extends Pipe<T, T> {
+	constructor(public literals: T[]) {
+		const check = new Check(`${literals.join(",")}`, (v: any): v is T =>
+			literals.includes(v),
+		);
+		super(check, check);
+	}
+}
+function enum_<T extends Lit>(literals: T[]): Enum<T> {
+	return new Enum(literals);
 }
 export { enum_ as enum };
 
