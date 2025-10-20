@@ -106,7 +106,7 @@ const headers = z
 		sent_id: z.string().nonempty(),
 		text: z.string().nonempty(),
 	})
-	.extend(z.string(), z.union([z.string(), z.undefined()]));
+	.record(z.string(), z.union([z.string(), z.undefined()]));
 
 const headerPrefix = "# ";
 const headersConllu = z.codecs.custom(z.string(), headers, {

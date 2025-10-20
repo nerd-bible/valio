@@ -35,6 +35,10 @@ test("object", () => {
 		success: true,
 		output: { foo: 10 } as O,
 	});
+	expect(o.decode({ foo: 10, bar: 10 })).toEqual({
+		success: true,
+		output: { foo: 10 } as O,
+	});
 	expect(o.decode({ bar: 10 })).toEqual({
 		success: false,
 		errors: {
@@ -59,7 +63,78 @@ test("nested object", () => {
 	});
 	expect(o.decode({ bar: 10 })).toEqual({
 		success: false,
-		errors: { ".foo": [{ input: undefined, message: "not type object" }] },
+		errors: {
+			".foo": [
+				{
+					input: undefined,
+					message: "not type object",
+				},
+			],
+		},
+	});
+});
+
+test("partial object", () => {
+	const o = v.object({ foo: v.number().gt(4) }).partial({ foo: true });
+	type O = v.Output<typeof o>;
+	expect(o.decode({ foo: 10 })).toEqual({
+		success: true,
+		output: { foo: 10 } as O,
+	});
+	expect(o.decode({ foo: undefined })).toEqual({
+		success: true,
+		output: { foo: undefined } as O,
+	});
+	expect(o.decode({})).toEqual({
+		success: true,
+		output: {} as O,
+	});
+});
+
+test("pick object", () => {
+	const o = v
+		.object({ foo: v.number().gt(4), bar: v.number() })
+		.pick({ foo: true });
+	type O = v.Output<typeof o>;
+
+	expect(o.decode({ bar: 10 })).toEqual({
+		success: false,
+		errors: {
+			".foo": [
+				{
+					input: undefined,
+					message: "not type number",
+				},
+			],
+		},
+	});
+	expect(o.decode({ foo: 10, bar: 10 } as O)).toEqual({
+		success: true,
+		output: { foo: 10 },
+	});
+	expect(o.decode({})).toEqual({
+		success: false,
+		errors: { ".foo": [{ input: undefined, message: "not type number" }] },
+	});
+});
+
+test("omit object", () => {
+	const o = v
+		.object({ foo: v.number().gt(4), bar: v.number() })
+		.omit({ foo: true });
+	type O = v.Output<typeof o>;
+
+	expect(o.decode({ bar: 10 })).toEqual({
+		success: true,
+		output: { bar: 10 } as O,
+	});
+	expect(o.decode({ foo: undefined, bar: 10 })).toEqual({
+		success: true,
+		output: { bar: 10 },
+	});
+	expect(o.decode({})).toEqual({
+		success: false,
+		errors: { ".bar": [{ input: undefined, message: "not type number" }] },
 	});
 });
 

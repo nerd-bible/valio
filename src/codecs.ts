@@ -16,6 +16,8 @@ export function custom<I, O>(
 	return res;
 }
 
+type A = Pipe<any, any> & Pipe<string | number, number>;
+
 export function number(
 	parser = parseFloat,
 ): p.Number & Pipe<string | number | null | undefined, number> {

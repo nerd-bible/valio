@@ -1,9 +1,16 @@
-import { Context, pipe, type Output, type Pipe, type Result } from "./pipe";
+import {
+	Context,
+	pipe,
+	type Input,
+	type Output,
+	type Pipe,
+	type Result,
+} from "./pipe";
 import * as p from "./primitives";
 
-export interface Array {}
-export function array<T>(element: Pipe<any, T>): Array & Pipe<any[], T[]> {
-	return pipe<any[], T[]>(
+export interface Array<T, I = any[]> extends Pipe<I, T[]> {}
+export function array<T>(element: Pipe<any, T>): Array<T> {
+	return pipe(
 		{
 			name: "array",
 			typeCheck: (v: any): v is any[] => Array.isArray(v),
@@ -35,14 +42,15 @@ export function array<T>(element: Pipe<any, T>): Array & Pipe<any[], T[]> {
 	);
 }
 
-export interface Record<K extends keyof any, V> {
+export interface Record<K extends keyof any, V, I = globalThis.Record<any, any>>
+	extends Pipe<I, globalThis.Record<K, V>> {
 	keyPipe: Pipe<any, K>;
 	valPipe: Pipe<any, V>;
 }
 export function record<K extends keyof any, V>(
 	keyPipe: Pipe<any, K>,
 	valPipe: Pipe<any, V>,
-): Record<K, V> & Pipe<globalThis.Record<any, any>, globalThis.Record<K, V>> {
+): Record<K, V> {
 	const res = pipe<globalThis.Record<any, any>, globalThis.Record<K, V>>(
 		{
 			name: "object",
@@ -92,12 +100,11 @@ export function record<K extends keyof any, V>(
 	return res;
 }
 
-export interface Union<T extends Readonly<Pipe[]>> {
+export interface Union<T extends Readonly<Pipe[]>, I = Output<T[number]>>
+	extends Pipe<I, Output<T[number]>> {
 	options: T;
 }
-export function union<T extends Readonly<Pipe[]>>(
-	options: T,
-): Union<T> & Pipe<Output<T[number]>, Output<T[number]>> {
+export function union<T extends Readonly<Pipe[]>>(options: T): Union<T> {
 	type O = Output<T[number]>;
 	const name = options.map((o) => o.o.name).join("|");
 	const res = pipe<O, O>(
@@ -130,51 +137,82 @@ export function union<T extends Readonly<Pipe[]>>(
 	return res;
 }
 
-type ObjectOutput<T extends globalThis.Record<string, Pipe<any, any>>> = {
-	[K in keyof T]: Output<T[K]>;
-};
+type ObjectOutput<
+	T extends globalThis.Record<string, Pipe<any, any>>,
+	RT,
+> = RT extends Record<any, any>
+	? { [K in keyof T]: Output<T[K]> } & Output<RT>
+	: { [K in keyof T]: Output<T[K]> };
+type Mask<Keys extends keyof any> = { [K in Keys]?: true };
+export type Identity<T> = T;
+export type Flatten<T> = Identity<{
+	[k in keyof T]: T[k];
+}>;
+
 export interface Object<
 	Shape extends globalThis.Record<any, Pipe<any, any>>,
-	RK extends keyof any = never,
-	RV = never,
-> {
+	RShape extends Record<any, any> | undefined = undefined,
+	I = object,
+> extends Pipe<I, ObjectOutput<Shape, RShape>> {
 	shape: Shape;
-	record?: Record<RK, RV>;
-	partial(): Object<Shape> & Pipe<object, Partial<ObjectOutput<Shape>>>;
-	extend<K extends keyof any, V>(
+	recordShape?: RShape;
+
+	pick<M extends Mask<keyof Shape>>(
+		mask: M,
+	): Object<Flatten<Pick<Shape, Extract<keyof Shape, keyof M>>>, RShape, I>;
+	omit<M extends Mask<keyof Shape>>(
+		mask: M,
+	): Object<Flatten<Omit<Shape, Extract<keyof Shape, keyof M>>>, RShape, I>;
+	partial<M extends Mask<keyof Shape>>(
+		mask: M,
+	): Object<
+		{
+			[k in keyof Shape]: k extends keyof M
+				? Pipe<Input<Shape[k]>, Output<Shape[k]> | undefined>
+				: Shape[k];
+		},
+		RShape,
+		I
+	>;
+	record<K extends keyof any, V>(
 		k: Pipe<any, K>,
 		v: Pipe<any, V>,
-	): Object<Shape, K, V> & Pipe<object, ObjectOutput<Shape> & { [k in K]: V }>;
+	): Object<Shape, Record<K, V>, I>;
 }
 export function object<
-	T extends globalThis.Record<any, Pipe<any, any>>,
-	RK extends keyof any = never,
-	RV = never,
->(
-	shape: T,
-	record_?: Record<RK, RV>,
-): Object<T> & Pipe<object, ObjectOutput<T>> {
-	const res = pipe<object, ObjectOutput<T>>(
+	Shape extends globalThis.Record<any, Pipe<any, any>>,
+	RecordShape extends Record<any, any> | undefined = undefined,
+>(shape: Shape, recordShape?: RecordShape): Object<Shape, RecordShape> {
+	const res = pipe<object, ObjectOutput<Shape, RecordShape>>(
 		{
 			name: "object",
 			typeCheck: (v): v is object =>
 				Object.prototype.toString.call(v) == "[object Object]",
-			transform(data: object, ctx: Context): Result<ObjectOutput<T>> {
+			transform(
+				data: object,
+				ctx: Context,
+			): Result<ObjectOutput<Shape, RecordShape>> {
 				const output: globalThis.Record<keyof any, any> = {};
 				let success = true;
 
 				const length = ctx.jsonPath.length;
-				for (const k in data) {
-					ctx.jsonPath[length] = k;
-					const v = (data as any)[k];
-					if (k in shape) {
-						const decoded = shape[k]!.decode(v, ctx);
-						if (decoded.success) output[k] = decoded.output;
-						else success = false;
-					} else if (record_) {
-						const decodedKey = record_.keyPipe.decode(k, ctx);
+				// Always expect the shape since that's what typescript does.
+				for (const p in shape) {
+					ctx.jsonPath[length] = p;
+					const decoded = shape[p]!.decode((data as any)[p], ctx);
+					if (decoded.success) output[p] = decoded.output;
+					else success = false;
+				}
+
+				if (recordShape) {
+					for (const p in data) {
+						if (p in shape) continue;
+
+						ctx.jsonPath[length] = p;
+						const v = (data as any)[p];
+						const decodedKey = recordShape.keyPipe.decode(p, ctx);
 						if (decodedKey.success) {
-							const decodedVal = record_.valPipe.decode(v, ctx);
+							const decodedVal = recordShape.valPipe.decode(v, ctx);
 							if (decodedVal.success) {
 								output[decodedKey.output] = decodedVal.output;
 							} else {
@@ -188,33 +226,50 @@ export function object<
 				ctx.jsonPath.length = length;
 
 				if (!success) return { success, errors: ctx.errors };
-				return { success, output: output as ObjectOutput<T> };
+				return { success, output: output as ObjectOutput<Shape, RecordShape> };
 			},
 		},
 		{
-			name: "object<T>",
-			typeCheck: (v): v is ObjectOutput<T> => {
+			name: `{${Object.entries(shape)
+				.map(([k, v]) => `${k}: ${v.o.name}`)
+				.join(",")}}`,
+			typeCheck: (v): v is ObjectOutput<Shape, RecordShape> => {
 				if (Object.prototype.toString.call(v) != "[object Object]")
 					return false;
 				for (const s in shape) if (!shape[s]!.o.typeCheck(v[s])) return false;
 				return true;
 			},
 		},
-	) as ReturnType<typeof object<T>>;
+	) as unknown as ReturnType<typeof object>;
 	res.shape = shape;
-	res.partial = () => {
+	res.recordShape = recordShape;
+
+	res.pick = <M extends Mask<keyof Shape>>(mask: M) => {
 		const next = res.clone();
 		for (const k in next.shape) {
-			// @ts-ignore
-			next.shape[k] = union([next.shape[k], p.undefined()]);
+			if (!mask[k]) delete next.shape[k];
 		}
 		return next as any;
 	};
-	res.extend = <K extends keyof any, V>(
-		k: Pipe<any, K>,
-		v: Pipe<any, V>,
-	): Object<T, K, V> & Pipe<object, ObjectOutput<T> & { [k in K]: V }> => {
-		return object<T, K, V>(shape, record(k, v)) as any;
+	res.omit = <M extends Mask<keyof Shape>>(mask: M) => {
+		const next = res.clone();
+		for (const k in next.shape) {
+			if (mask[k]) delete next.shape[k];
+		}
+		return next as any;
 	};
-	return res;
+	res.partial = <M extends Mask<keyof Shape>>(mask: M) => {
+		const next = res.clone();
+		for (const k in next.shape) {
+			if (mask[k]) {
+				// @ts-ignore
+				next.shape[k] = union([next.shape[k], p.undefined()]);
+			}
+		}
+		return next as any;
+	};
+	res.record = <K extends keyof any, V>(k: Pipe<any, K>, v: Pipe<any, V>) => {
+		return object<Shape, Record<K, V>>(shape, record(k, v)) as any;
+	};
+	return res as any;
 }

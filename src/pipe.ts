@@ -1,7 +1,6 @@
 export type Error = {
 	input: any;
 	message: string;
-	userdata?: any;
 };
 export type Errors = {
 	[inputPath: string]: Error[];
@@ -9,18 +8,6 @@ export type Errors = {
 export type Result<T> =
 	| { success: true; output: T }
 	| { success: false; errors: Errors };
-export type Type =
-	| "string"
-	| "number"
-	| "array"
-	| "object"
-	| "boolean"
-	| "union"
-	| "literal"
-	| "enum"
-	| "record"
-	| "undefined"
-	| "null";
 export type Check<I, O = never> = {
 	/** The type name */
 	name: string;
