@@ -53,7 +53,7 @@ export function number() {
 	return new Number();
 }
 
-class Arrayish<
+export class Arrayish<
 	I,
 	O extends {
 		length: number;

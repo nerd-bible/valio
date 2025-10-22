@@ -101,12 +101,14 @@ const wordConllu = z.codecs.custom(z.string(), word, {
 	},
 });
 
-const headers = z
-	.object({
-		sent_id: z.string().minLength(1),
-		text: z.string().minLength(1),
-	})
-	.record(z.string(), z.union([z.string(), z.undefined()]));
+const headers = z.record(z.string(), z.union([z.string(), z.undefined()])).pipe(
+	z
+		.object({
+			sent_id: z.string().minLength(1),
+			text: z.string().minLength(1),
+		})
+		.loose(),
+);
 
 const headerPrefix = "# ";
 const headersConllu = z.codecs.custom(z.string(), headers, {
@@ -121,7 +123,7 @@ const headersConllu = z.codecs.custom(z.string(), headers, {
 			} else {
 				kvs[line.substring(0, i).trim()] = line.substring(i + 1).trim();
 			}
-			ctx.jsonPath[0] += 1;
+			(ctx.jsonPath[0] as number) += 1;
 		}
 
 		return headers.decode(kvs);
@@ -131,7 +133,7 @@ const headersConllu = z.codecs.custom(z.string(), headers, {
 		for (const k in obj) {
 			output += `# ${k}`;
 			if (obj[k] != null) output += ` = ${obj[k]}`;
-			output += "\n"
+			output += "\n";
 		}
 		return { success: true, output };
 	},
@@ -159,7 +161,7 @@ const sentenceConllu = z.codecs.custom(z.string(), sentence, {
 				if (!decoded.success) return decoded;
 				output.words.push(decoded.output);
 			}
-			ctx.jsonPath[0] += 1;
+			(ctx.jsonPath[0] as number) += 1;
 		}
 
 		return { success: true, output };

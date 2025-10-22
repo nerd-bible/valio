@@ -1,11 +1,11 @@
-import { Check, Context, Pipe } from "./pipe";
+import { HalfPipe, Context, Pipe } from "./pipe";
 import type { Input, Output, Result } from "./pipe";
 import * as p from "./primitives";
 
-class ValioArray<T> extends Pipe<any[], T[]> {
+class ValioArray<T> extends p.Arrayish<any[], T[]> {
 	constructor(public element: Pipe<any, T>) {
 		super(
-			new Check(
+			new HalfPipe(
 				"array",
 				(v: any): v is any[] => Array.isArray(v),
 				(input: any[], ctx: Context): Result<T[]> => {
@@ -25,7 +25,7 @@ class ValioArray<T> extends Pipe<any[], T[]> {
 					return { success, output };
 				},
 			),
-			new Check(`array<${element.o.name}>`, (v: any): v is T[] => {
+			new HalfPipe(`array<${element.o.name}>`, (v: any): v is T[] => {
 				if (!Array.isArray(v)) return false;
 				for (const e of v) if (!element.o.typeCheck(e)) return false;
 				return true;
@@ -37,7 +37,7 @@ export function array<T>(element: Pipe<any, T>): ValioArray<T> {
 	return new ValioArray(element);
 }
 
-class ValioRecord<K extends keyof any, V> extends Pipe<
+class ValioRecord<K extends PropertyKey, V> extends Pipe<
 	Record<any, any>,
 	Record<K, V>
 > {
@@ -46,12 +46,12 @@ class ValioRecord<K extends keyof any, V> extends Pipe<
 		public valPipe: Pipe<any, V>,
 	) {
 		super(
-			new Check(
+			new HalfPipe(
 				"object",
 				(v): v is Record<any, any> =>
 					Object.prototype.toString.call(v) == "[object Object]",
-				(input: object, ctx: Context): Result<globalThis.Record<K, V>> => {
-					const output = {} as globalThis.Record<K, V>;
+				(input: Record<any, any>, ctx: Context): Result<Record<K, V>> => {
+					const output = {} as Record<K, V>;
 
 					let success = true;
 					const length = ctx.jsonPath.length;
@@ -75,9 +75,9 @@ class ValioRecord<K extends keyof any, V> extends Pipe<
 					return { success, output };
 				},
 			),
-			new Check(
+			new HalfPipe(
 				`record<${keyPipe.o.name},${valPipe.o.name}>`,
-				(v): v is globalThis.Record<K, V> => {
+				(v): v is Record<K, V> => {
 					if (Object.prototype.toString.call(v) != "[object Object]")
 						return false;
 					for (const k in v) {
@@ -91,7 +91,7 @@ class ValioRecord<K extends keyof any, V> extends Pipe<
 		);
 	}
 }
-export function record<K extends keyof any, V>(
+export function record<K extends PropertyKey, V>(
 	keyPipe: Pipe<any, K>,
 	valPipe: Pipe<any, V>,
 ): ValioRecord<K, V> {
@@ -106,7 +106,7 @@ class Union<T extends Readonly<Pipe[]>> extends Pipe<
 		const name = options.map((o) => o.o.name).join("|");
 		type O = Output<T[number]>;
 		super(
-			new Check(
+			new HalfPipe(
 				name,
 				(v: any): v is O => {
 					for (const f of options) if (f.i.typeCheck(v)) return true;
@@ -123,7 +123,7 @@ class Union<T extends Readonly<Pipe[]>> extends Pipe<
 					return { success: false, errors: ctx.errors };
 				},
 			),
-			new Check(name, (v: any): v is O => {
+			new HalfPipe(name, (v: any): v is O => {
 				for (const f of options) if (f.o.typeCheck(v)) return true;
 				return false;
 			}),
@@ -134,83 +134,85 @@ export function union<T extends Readonly<Pipe[]>>(options: T): Union<T> {
 	return new Union(options);
 }
 
-type ObjectOutput<
-	Shape extends Record<string, Pipe<any, any>>,
-	RecordShape,
-> = RecordShape extends ValioRecord<any, any>
-	? { [K in keyof Shape]: Output<Shape[K]> } & Output<RecordShape>
-	: { [K in keyof Shape]: Output<Shape[K]> };
-type Mask<Keys extends keyof any> = { [K in Keys]?: true };
+type ObjectOutput<Shape extends Record<string, Pipe<any, any>>> = {
+	[K in keyof Shape]: Output<Shape[K]>;
+};
+type Mask<Keys extends PropertyKey> = { [K in Keys]?: true };
 type Identity<T> = T;
 type Flatten<T> = Identity<{ [k in keyof T]: T[k] }>;
+type Extend<A extends Record<any, any>, B extends Record<any, any>> = Flatten<
+	// fast path when there is no keys overlap
+	keyof A & keyof B extends never
+		? A & B
+		: {
+				[K in keyof A as K extends keyof B ? never : K]: A[K];
+			} & {
+				[K in keyof B]: B[K];
+			}
+>;
 
-class ValioObject<
-	Shape extends Record<any, Pipe<any, any>>,
-	RShape extends ValioRecord<any, any> | undefined = undefined,
-> extends Pipe<object, ObjectOutput<Shape, RShape>> {
+class ValioObject<Shape extends Record<any, Pipe<any, any>>> extends Pipe<
+	Record<any, any>,
+	ObjectOutput<Shape>
+> {
 	constructor(
 		public shape: Shape,
-		public recordShape?: RShape,
+		public isLoose: boolean,
 	) {
-		const i = new Check(
-			"object",
-			(v): v is object =>
-				Object.prototype.toString.call(v) == "[object Object]",
-			(data: object, ctx: Context): Result<ObjectOutput<Shape, RShape>> => {
-				const output: globalThis.Record<keyof any, any> = {};
-				let success = true;
-
-				const length = ctx.jsonPath.length;
-				// Always expect the shape since that's what typescript does.
-				for (const p in shape) {
-					ctx.jsonPath[length] = p;
-					const decoded = shape[p]!.decode((data as any)[p], ctx);
-					if (decoded.success) output[p] = decoded.output;
-					else success = false;
-				}
-
-				if (recordShape) {
-					for (const p in data) {
-						if (p in shape) continue;
-
-						ctx.jsonPath[length] = p;
-						const v = (data as any)[p];
-						const decodedKey = recordShape.keyPipe.decode(p, ctx);
-						if (decodedKey.success) {
-							const decodedVal = recordShape.valPipe.decode(v, ctx);
-							if (decodedVal.success) {
-								output[decodedKey.output] = decodedVal.output;
-							} else {
-								success = false;
-							}
-						} else {
-							success = false;
-						}
-					}
-				}
-				ctx.jsonPath.length = length;
-
-				if (!success) return { success, errors: ctx.errors };
-				return { success, output: output as ObjectOutput<Shape, RShape> };
-			},
+		super(
+			new HalfPipe(
+				"object",
+				(v): v is Record<any, any> =>
+					Object.prototype.toString.call(v) == "[object Object]",
+				(data, ctx) => this.transformInput(data, ctx),
+			),
+			new HalfPipe(
+				`{${Object.entries(shape)
+					.map(([k, v]) => `${k}: ${v.o.name}`)
+					.join(",")}}`,
+				(v) => this.typeCheckOutput(v),
+			),
 		);
-		const o = new Check(
-			`{${Object.entries(shape)
-				.map(([k, v]) => `${k}: ${v.o.name}`)
-				.join(",")}}`,
-			(v): v is ObjectOutput<Shape, RShape> => {
-				if (Object.prototype.toString.call(v) != "[object Object]")
-					return false;
-				for (const s in shape) if (!shape[s]!.o.typeCheck(v[s])) return false;
-				return true;
-			},
-		);
-		super(i, o);
+	}
+
+	clone(): this {
+		return new ValioObject(this.shape, this.isLoose) as any;
+	}
+
+	protected transformInput(
+		data: object,
+		ctx: Context,
+	): Result<ObjectOutput<Shape>> {
+		const output: Record<PropertyKey, any> = this.isLoose ? data : {};
+		let success = true;
+
+		const length = ctx.jsonPath.length;
+		// Always expect the shape since that's what typescript does.
+		for (const p in this.shape) {
+			ctx.jsonPath[length] = p;
+			const decoded = this.shape[p]!.decode((data as any)[p], ctx);
+			if (decoded.success) output[p] = decoded.output;
+			else {
+				success = false;
+				delete output[p];
+			}
+		}
+		ctx.jsonPath.length = length;
+
+		if (!success) return { success, errors: ctx.errors };
+		return { success, output: output as ObjectOutput<Shape> };
+	}
+
+	protected typeCheckOutput(v: any): v is ObjectOutput<Shape> {
+		if (Object.prototype.toString.call(v) != "[object Object]") return false;
+		for (const s in this.shape)
+			if (!this.shape[s]!.o.typeCheck(v[s])) return false;
+		return true;
 	}
 
 	pick<M extends Mask<keyof Shape>>(
 		mask: M,
-	): ValioObject<Flatten<Pick<Shape, Extract<keyof Shape, keyof M>>>, RShape> {
+	): ValioObject<Flatten<Pick<Shape, Extract<keyof Shape, keyof M>>>> {
 		const next = this.clone();
 		for (const k in next.shape) {
 			if (!mask[k]) delete next.shape[k];
@@ -220,7 +222,7 @@ class ValioObject<
 
 	omit<M extends Mask<keyof Shape>>(
 		mask: M,
-	): ValioObject<Flatten<Omit<Shape, Extract<keyof Shape, keyof M>>>, RShape> {
+	): ValioObject<Flatten<Omit<Shape, Extract<keyof Shape, keyof M>>>> {
 		const next = this.clone();
 		for (const k in next.shape) {
 			if (mask[k]) delete next.shape[k];
@@ -230,14 +232,11 @@ class ValioObject<
 
 	partial<M extends Mask<keyof Shape>>(
 		mask: M,
-	): ValioObject<
-		{
-			[k in keyof Shape]: k extends keyof M
-				? Pipe<Input<Shape[k]>, Output<Shape[k]> | undefined>
-				: Shape[k];
-		},
-		RShape
-	> {
+	): ValioObject<{
+		[k in keyof Shape]: k extends keyof M
+			? Pipe<Input<Shape[k]>, Output<Shape[k]> | undefined>
+			: Shape[k];
+	}> {
 		const next = this.clone();
 		for (const k in next.shape) {
 			if (mask[k]) {
@@ -248,18 +247,23 @@ class ValioObject<
 		return next as any;
 	}
 
-	record<K extends keyof any, V>(
-		k: Pipe<any, K>,
-		v: Pipe<any, V>,
-	): ValioObject<Shape, ValioRecord<K, V>> {
-		const res = this.clone() as any;
-		res.recordShape = record(k, v);
-		return res;
+	extend<T extends Record<any, Pipe<any, any>>>(
+		shape: T,
+	): ValioObject<Extend<Shape, T>> {
+		const next = this.clone();
+		Object.assign(next.shape, shape);
+		return next as any;
+	}
+
+	loose<T>(isLoose = true): ValioObject<Shape & { [k: PropertyKey]: T }> {
+		const next = this.clone();
+		next.isLoose = isLoose;
+		return next as any;
 	}
 }
-export function object<
-	Shape extends globalThis.Record<any, Pipe<any, any>>,
-	RShape extends ValioRecord<any, any> | undefined = undefined,
->(shape: Shape, recordShape?: RShape): ValioObject<Shape, RShape> {
-	return new ValioObject(shape, recordShape);
+export function object<Shape extends Record<any, Pipe<any, any>>>(
+	shape: Shape,
+	loose = false,
+): ValioObject<Shape> {
+	return new ValioObject(shape, loose);
 }

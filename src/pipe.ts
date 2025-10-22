@@ -36,7 +36,7 @@ export class HalfPipe<I, O = never> {
 
 /** During encoding, decoding, or validation. */
 export class Context {
-	jsonPath: (keyof any)[] = [];
+	jsonPath: (string | number)[] = [];
 	errors: Errors = {};
 
 	clone(): Context {
@@ -48,7 +48,6 @@ export class Context {
 
 	pushError(error: Error) {
 		const key = "." + this.jsonPath.join(".");
-		this.errors ??= {};
 		this.errors[key] ??= [];
 		this.errors[key].push(error);
 	}
@@ -87,17 +86,14 @@ export class Pipe<I = any, O = any> {
 		return res;
 	}
 
-	refine(
-		check: Check<O>,
-		props: Record<any, any> = {},
-	): this {
+	refine(check: Check<O>, props: Record<any, any> = {}): this {
 		const res = this.clone();
 		res.o.checks.push(check);
 		Object.assign(res.o.checks, props);
 		return res;
 	}
 
-	pipe<O2>(pipe: Pipe<O, O2>): Pipe<I, O2> {
+	pipe<I2 extends O, O2>(pipe: Pipe<I2, O2>): Pipe<I, O2> {
 		const res: Pipe<any, any> = this.clone();
 		res.pipes.push(pipe);
 		return res;

@@ -52,6 +52,17 @@ test("object", () => {
 	});
 });
 
+test("loose object", () => {
+	const o = v.object({ foo: v.number().gt(4) }).loose();
+	type O = v.Output<typeof o>;
+
+	expect(o.isLoose).toBe(true);
+	expect(o.decode({ foo: 10, bar: 10 })).toEqual({
+		success: true,
+		output: { foo: 10, bar: 10 } as O,
+	});
+});
+
 test("nested object", () => {
 	const o = v.object({
 		foo: v.object({ bar: v.number().gt(4) }),
@@ -149,6 +160,33 @@ test("record", () => {
 	expect(o.decode({ foo: { bar: 10 } })).toEqual({
 		success: false,
 		errors: { ".foo": [{ input: { bar: 10 }, message: "not type number" }] },
+	});
+});
+
+test("extend object", () => {
+	const o = v.object({ foo: v.number().gt(4) }).extend({ bar: v.number() });
+	type O = v.Output<typeof o>;
+
+	expect(o.decode({ foo: 10, bar: 5 })).toEqual({
+		success: true,
+		output: { foo: 10, bar: 5 } as O,
+	});
+	expect(o.decode({})).toEqual({
+		success: false,
+		errors: {
+			".bar": [
+				{
+					input: undefined,
+					message: "not type number",
+				},
+			],
+			".foo": [
+				{
+					input: undefined,
+					message: "not type number",
+				},
+			],
+		},
 	});
 });
 
