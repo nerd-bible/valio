@@ -11,7 +11,9 @@ function clone<T>(obj: T): T {
 	);
 }
 
-export class Check<I, O = never> {
+type Check<T> = (data: T, ctx: Context) => string;
+
+export class HalfPipe<I, O = never> {
 	constructor(
 		/** The type name */
 		public name: string,
@@ -20,19 +22,21 @@ export class Check<I, O = never> {
 		/** Optional transform for pipe to run at end. Useful for containers */
 		public transform?: (v: I, ctx: Context) => Result<O>,
 	) {}
-	/** The second check to run */
-	checks: Array<(data: I, ctx: Context) => string> = [];
+	/** The second checks to run */
+	checks: Array<Check<I>> = [];
+	checksProps: Record<any, any> = {};
 
 	clone(): this {
 		const res = clone(this);
 		res.checks = res.checks.slice();
+		res.checksProps = { ...res.checksProps };
 		return res;
 	}
 }
 
 /** During encoding, decoding, or validation. */
 export class Context {
-	jsonPath: string[] = [];
+	jsonPath: (keyof any)[] = [];
 	errors: Errors = {};
 
 	clone(): Context {
@@ -49,7 +53,7 @@ export class Context {
 		this.errors[key].push(error);
 	}
 
-	runCheck<I, O>(input: any, check: Check<I, O>): Result<I> {
+	runCheck<I, O>(input: any, check: HalfPipe<I, O>): Result<I> {
 		if (!check.typeCheck(input)) {
 			this.pushError({ input, message: `not type ${check.name}` });
 			return { success: false, errors: this.errors };
@@ -69,8 +73,8 @@ export class Context {
 
 export class Pipe<I = any, O = any> {
 	constructor(
-		public i: Check<I, O>,
-		public o: Check<O, I>,
+		public i: HalfPipe<I, O>,
+		public o: HalfPipe<O, I>,
 	) {}
 
 	pipes: Array<Pipe<any, any>> = [];
@@ -83,9 +87,13 @@ export class Pipe<I = any, O = any> {
 		return res;
 	}
 
-	refine(validator: (data: O, ctx: Context) => string): this {
+	refine(
+		check: Check<O>,
+		props: Record<any, any> = {},
+	): this {
 		const res = this.clone();
-		res.o.checks.push(validator);
+		res.o.checks.push(check);
+		Object.assign(res.o.checks, props);
 		return res;
 	}
 

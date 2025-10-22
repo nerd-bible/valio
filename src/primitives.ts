@@ -1,7 +1,7 @@
-import { Check, Pipe } from "./pipe";
+import { HalfPipe, Pipe } from "./pipe";
 
 function primitive<T>(name: string, typeCheck: (v: T) => v is T) {
-	const check = new Check(name, typeCheck);
+	const check = new HalfPipe(name, typeCheck);
 	return new Pipe(check, check);
 }
 
@@ -30,22 +30,22 @@ export { null_ as null };
 
 class Comparable<I, O> extends Pipe<I, O> {
 	gt(n: O) {
-		return this.refine((v) => (v > n ? "" : `must be > ${n}`));
+		return this.refine((v) => (v > n ? "" : `must be > ${n}`), { gt: n });
 	}
 	gte(n: O) {
-		return this.refine((v) => (v >= n ? "" : `must be >= ${n}`));
+		return this.refine((v) => (v >= n ? "" : `must be >= ${n}`), { gte: n });
 	}
 	lt(n: O) {
-		return this.refine((v) => (v < n ? "" : `must be < ${n}`));
+		return this.refine((v) => (v < n ? "" : `must be < ${n}`), { lt: n });
 	}
 	lte(n: O) {
-		return this.refine((v) => (v <= n ? "" : `must be <= ${n}`));
+		return this.refine((v) => (v <= n ? "" : `must be <= ${n}`), { lte: n });
 	}
 }
 
 class Number extends Comparable<number, number> {
 	constructor() {
-		const check = new Check("number", (v) => typeof v == "number");
+		const check = new HalfPipe("number", (v) => typeof v == "number");
 		super(check, check);
 	}
 }
@@ -53,14 +53,36 @@ export function number() {
 	return new Number();
 }
 
-class String extends Comparable<string, string> {
+class Arrayish<
+	I,
+	O extends {
+		length: number;
+	},
+> extends Pipe<I, O> {
+	minLength(n: number) {
+		return this.refine(
+			(v) => (v.length >= n ? "" : `must have length >= ${n}`),
+			{ minLength: n },
+		);
+	}
+	maxLength(n: number) {
+		return this.refine(
+			(v) => (v.length <= n ? "" : `must have length <= ${n}`),
+			{ maxLength: n },
+		);
+	}
+}
+
+class String extends Arrayish<string, string> {
 	constructor() {
-		const check = new Check("string", (v) => typeof v == "string");
+		const check = new HalfPipe("string", (v) => typeof v == "string");
 		super(check, check);
 	}
 
 	regex(re: RegExp) {
-		return this.refine((v) => (v.match(re) ? "" : `must match ${re.source}`));
+		return this.refine((v) => (v.match(re) ? "" : `must match ${re.source}`), {
+			regex: re.source,
+		});
 	}
 }
 export function string(): String {
@@ -71,7 +93,7 @@ export type Lit = string | number | bigint | boolean | null | undefined;
 
 class Literal<T extends Lit> extends Pipe<T, T> {
 	constructor(public literal: T) {
-		const check = new Check(`${literal}`, (v): v is T => v == literal);
+		const check = new HalfPipe(`${literal}`, (v): v is T => v == literal);
 		super(check, check);
 	}
 }
@@ -81,7 +103,7 @@ export function literal<T extends Lit>(literal: T) {
 
 class Enum<T extends Lit> extends Pipe<T, T> {
 	constructor(public literals: T[]) {
-		const check = new Check(`${literals.join(",")}`, (v: any): v is T =>
+		const check = new HalfPipe(`${literals.join(",")}`, (v: any): v is T =>
 			literals.includes(v),
 		);
 		super(check, check);

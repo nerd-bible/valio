@@ -103,8 +103,8 @@ const wordConllu = z.codecs.custom(z.string(), word, {
 
 const headers = z
 	.object({
-		sent_id: z.string().nonempty(),
-		text: z.string().nonempty(),
+		sent_id: z.string().minLength(1),
+		text: z.string().minLength(1),
 	})
 	.record(z.string(), z.union([z.string(), z.undefined()]));
 
