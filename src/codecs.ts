@@ -32,7 +32,7 @@ export function number(
 				const output = parser(input);
 				if (!isNaN(output)) return { success: true, output };
 
-				ctx.pushError({ input, message: "could not parse number" });
+				ctx.pushErrorFmt("coerceFail", input, { expected: "number" });
 				return { success: false, errors: ctx.errors };
 			},
 		},

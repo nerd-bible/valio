@@ -60,6 +60,11 @@ export class Context {
 		this.errors[key].push(error);
 	}
 
+	pushErrorFmt(name: string, input: any, props: Record<any, any>) {
+		const message = this.errorFmt(name, { input, ...props });
+		this.pushError({ input, message });
+	}
+
 	run<I, O>(input: any, halfPipe: HalfPipe<I, O>): Result<I> {
 		if (!halfPipe.typeCheck(input)) {
 			const message = this.errorFmt("invalidType", { expected: halfPipe.name });
@@ -69,8 +74,7 @@ export class Context {
 		let success = true;
 		for (const c of halfPipe.checks ?? []) {
 			if (!c.valid(input, this)) {
-				const message = this.errorFmt(c.name, { input, ...c.props });
-				this.pushError({ input, message });
+				this.pushErrorFmt(c.name, input, c.props);
 				success = false;
 			}
 		}

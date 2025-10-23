@@ -13,7 +13,7 @@ test("number codec", () => {
 	expect(schema.decode("asdf")).toEqual({
 		success: false,
 		errors: {
-			".": [{ input: "asdf", message: "could not parse number" }],
+			".": [{ input: "asdf", message: "could not coerce to number" }],
 		},
 	});
 	expect(schema.decode("Infinity")).toEqual({
