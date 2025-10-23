@@ -1,13 +1,20 @@
 import { test, expect } from "bun:test";
 import * as v from "./index";
 
+test("number", () => {
+	const schema = v.number();
+
+	expect(schema.decode(5)).toEqual({ success: true, output: 5 });
+	expect(schema.decodeAny("5")).toEqual({
+		success: false,
+		errors: { ".": [{ input: "5", message: "not type number" }] },
+	});
+});
+
 test("custom validator", () => {
 	const schema = v.number().refine((n) => n == 5, "eq", { n: 5 });
 
-	expect(schema.decode(3)).toEqual({
-		success: false,
-		errors: { ".": [{ input: 3, message: "must be 5" }] },
-	});
+	expect(schema.decode(5)).toEqual({ success: true, output: 5 });
 	expect(schema.encode(3)).toEqual({
 		success: false,
 		errors: { ".": [{ input: 3, message: "must be 5" }] },

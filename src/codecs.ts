@@ -19,8 +19,7 @@ export function custom<I, O>(
 
 export function number(
 	parser = parseFloat,
-): ReturnType<typeof p.number> &
-	Pipe<string | number | null | undefined, number> {
+): p.Comparable<string | number | null | undefined, number> {
 	return custom(
 		c.union([p.string(), p.number(), p.null(), p.undefined()]),
 		p.number(),
@@ -43,7 +42,7 @@ export function number(
 export function boolean(opts: {
 	true?: string[];
 	false?: string[];
-}): ReturnType<typeof p.boolean> & Pipe<any, boolean> {
+}): Pipe<any, boolean> {
 	return custom(p.any(), p.boolean(), {
 		decode(input) {
 			if (typeof input === "string") {

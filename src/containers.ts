@@ -255,7 +255,9 @@ class ValioObject<Shape extends Record<any, Pipe<any, any>>> extends Pipe<
 		return next as any;
 	}
 
-	loose<T>(isLoose = true): ValioObject<Shape & { [k: PropertyKey]: T }> {
+	loose<T = any>(
+		isLoose = true,
+	): ValioObject<Shape & { [k: string]: Pipe<T, T> }> {
 		const next = this.clone();
 		next.isLoose = isLoose;
 		return next as any;

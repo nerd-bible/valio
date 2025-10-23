@@ -1,4 +1,3 @@
-import { MessageFormat } from "messageformat";
 import enFormat from "./locales/en";
 
 export type Error = { input: any; message: string };
@@ -61,13 +60,14 @@ export class Context {
 		this.errors[key].push(error);
 	}
 
-	runCheck<I, O>(input: any, check: HalfPipe<I, O>): Result<I> {
-		if (!check.typeCheck(input)) {
-			this.pushError({ input, message: `not type ${check.name}` });
+	run<I, O>(input: any, halfPipe: HalfPipe<I, O>): Result<I> {
+		if (!halfPipe.typeCheck(input)) {
+			const message = this.errorFmt("invalidType", { expected: halfPipe.name });
+			this.pushError({ input, message });
 			return { success: false, errors: this.errors };
 		}
 		let success = true;
-		for (const c of check.checks ?? []) {
+		for (const c of halfPipe.checks ?? []) {
 			if (!c.valid(input, this)) {
 				const message = this.errorFmt(c.name, { input, ...c.props });
 				this.pushError({ input, message });
@@ -85,7 +85,7 @@ export class Pipe<I = any, O = any> {
 		public o: HalfPipe<O, I>,
 	) {}
 
-	pipes: Array<Pipe<any, any>> = [];
+	pipes: Pipe<any, any>[] = [];
 	registry: Record<PropertyKey, any> = {};
 
 	clone(): this {
@@ -115,7 +115,7 @@ export class Pipe<I = any, O = any> {
 
 	decodeAny(input: any, ctx = new Context()): Result<O> {
 		// 1. Verify input
-		let res: Result<any> = ctx.runCheck(input, this.i);
+		let res: Result<any> = ctx.run(input, this.i);
 		if (!res.success) return res;
 		// 2. Transform input to output
 		if (this.i.transform) {
@@ -123,7 +123,7 @@ export class Pipe<I = any, O = any> {
 			if (!res.success) return res;
 		}
 		// 3. Verify output
-		res = ctx.runCheck(res.output, this.o);
+		res = ctx.run(res.output, this.o);
 		if (!res.success) return res;
 		// 4. Next
 		for (const p of this.pipes) {
@@ -144,7 +144,7 @@ export class Pipe<I = any, O = any> {
 			if (!res.success) return res;
 		}
 		// 2. Verify output
-		res = ctx.runCheck(res.output, this.o);
+		res = ctx.run(res.output, this.o);
 		if (!res.success) return res;
 		// 3. Transform output to input
 		if (this.o.transform) {
@@ -152,7 +152,7 @@ export class Pipe<I = any, O = any> {
 			if (!res.success) return res;
 		}
 		// 4. Verify input
-		return ctx.runCheck(res.output, this.i);
+		return ctx.run(res.output, this.i);
 	}
 	encode(output: O, ctx = new Context()): Result<I> {
 		return this.encodeAny(output, ctx);

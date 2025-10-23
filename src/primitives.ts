@@ -1,8 +1,8 @@
 import { HalfPipe, Pipe } from "./pipe";
 
 function primitive<T>(name: string, typeCheck: (v: T) => v is T) {
-	const check = new HalfPipe(name, typeCheck);
-	return new Pipe(check, check);
+	const half = new HalfPipe(name, typeCheck);
+	return new Pipe(half, half);
 }
 
 export function boolean() {
@@ -28,7 +28,7 @@ function null_() {
 }
 export { null_ as null };
 
-class Comparable<I, O> extends Pipe<I, O> {
+export class Comparable<I, O> extends Pipe<I, O> {
 	gt(n: O) {
 		return this.refine((v) => v > n, "gt", { n });
 	}
@@ -46,14 +46,14 @@ class Comparable<I, O> extends Pipe<I, O> {
 	}
 }
 
-class Number extends Comparable<number, number> {
+class ValioNumber extends Comparable<number, number> {
 	constructor() {
-		const check = new HalfPipe("number", (v) => typeof v == "number");
-		super(check, check);
+		const half = new HalfPipe("number", (v) => typeof v == "number");
+		super(half, half);
 	}
 }
 export function number() {
-	return new Number();
+	return new ValioNumber();
 }
 
 export class Arrayish<
@@ -70,43 +70,41 @@ export class Arrayish<
 	}
 }
 
-class String extends Pipe<string, string> {
+class ValioString extends Pipe<string, string> {
 	constructor() {
-		const check = new HalfPipe("string", (v) => typeof v == "string");
-		super(check, check);
+		const half = new HalfPipe("string", (v) => typeof v == "string");
+		super(half, half);
 	}
 
 	regex(re: RegExp) {
 		return this.refine((v) => !!v.match(re), "regex", { regex: re.source });
 	}
 }
-export function string(): String {
-	return new String();
+export function string(): ValioString {
+	return new ValioString();
 }
 
 export type Lit = string | number | bigint | boolean | null | undefined;
 
-class Literal<T extends Lit> extends Pipe<T, T> {
+class ValioLiteral<T extends Lit> extends Pipe<T, T> {
 	constructor(public literal: T) {
-		const check = new HalfPipe(`${literal}`, (v): v is T => v == literal);
-		super(check, check);
+		const half = new HalfPipe(`${literal}`, (v): v is T => v == literal);
+		super(half, half);
 	}
 }
 export function literal<T extends Lit>(literal: T) {
-	return new Literal(literal);
+	return new ValioLiteral(literal);
 }
 
-class Enum<T extends Lit> extends Pipe<T, T> {
+class ValioEnum<T extends Lit> extends Pipe<T, T> {
 	constructor(public literals: T[]) {
-		const check = new HalfPipe(`${literals.join(",")}`, (v: any): v is T =>
+		const half = new HalfPipe(`${literals.join(",")}`, (v: any): v is T =>
 			literals.includes(v),
 		);
-		super(check, check);
+		super(half, half);
 	}
 }
-function enum_<T extends Lit>(literals: T[]): Enum<T> {
-	return new Enum(literals);
+function enum_<T extends Lit>(literals: T[]): ValioEnum<T> {
+	return new ValioEnum(literals);
 }
 export { enum_ as enum };
-
-export class HeheXd {}

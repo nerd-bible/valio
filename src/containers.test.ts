@@ -53,7 +53,7 @@ test("object", () => {
 });
 
 test("loose object", () => {
-	const o = v.object({ foo: v.number().gt(4) }).loose();
+	const o = v.object({ foo: v.number().gt(4) }).loose<number>();
 	type O = v.Output<typeof o>;
 
 	expect(o.isLoose).toBe(true);

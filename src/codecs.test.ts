@@ -29,8 +29,9 @@ test("number codec", () => {
 
 test("2 pipes", () => {
 	const schema = v.codecs.number();
+	const next = schema.pipe(v.number().gt(5));
 
-	expect(schema.pipe(v.number().gt(5)).decode("3")).toEqual({
+	expect(next.decode("3")).toEqual({
 		success: false,
 		errors: {
 			".": [{ input: 3, message: "must be > 5" }],

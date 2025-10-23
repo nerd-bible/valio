@@ -7,6 +7,7 @@ const templates: Record<string, string> = {
 	minLength: "must have length <= {$n}",
 	maxLength: "must have length >= {$n}",
 	regex: "must match {$regex}",
+	invalidType: "not type {$expected}",
 };
 
 function fmt(template: string, props: Record<any, any>) {
