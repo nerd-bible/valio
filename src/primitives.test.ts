@@ -2,7 +2,7 @@ import { test, expect } from "bun:test";
 import * as v from "./index";
 
 test("custom validator", () => {
-	const schema = v.number().refine((n) => (n == 5 ? "" : "must be 5"));
+	const schema = v.number().refine((n) => n == 5, "eq", { n: 5 });
 
 	expect(schema.decode(3)).toEqual({
 		success: false,
@@ -11,6 +11,20 @@ test("custom validator", () => {
 	expect(schema.encode(3)).toEqual({
 		success: false,
 		errors: { ".": [{ input: 3, message: "must be 5" }] },
+	});
+});
+
+test("custom context", () => {
+	const schema = v.number().refine((n) => n == 5, "eq", { n: 5 });
+	class MyContext extends v.Context {
+		errorFmt() {
+			return "You done messed up";
+		}
+	}
+
+	expect(schema.decode(3, new MyContext())).toEqual({
+		success: false,
+		errors: { ".": [{ input: 3, message: "You done messed up" }] },
 	});
 });
 

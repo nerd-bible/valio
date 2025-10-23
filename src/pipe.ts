@@ -1,8 +1,11 @@
+import { MessageFormat } from "messageformat";
+import enFormat from "./locales/en";
+
 export type Error = { input: any; message: string };
 export type Errors = { [inputPath: string]: Error[] };
 export type Result<T> =
 	| { success: true; output: T }
-	| { success: false; errors: Errors };
+	| { success: false; errors: any };
 
 function clone<T>(obj: T): T {
 	return Object.create(
@@ -11,7 +14,11 @@ function clone<T>(obj: T): T {
 	);
 }
 
-type Check<T> = (data: T, ctx: Context) => string;
+interface Check<T> {
+	valid(data: T, ctx: Context): boolean;
+	name: string;
+	props: Record<any, any>;
+}
 
 export class HalfPipe<I, O = never> {
 	constructor(
@@ -23,13 +30,11 @@ export class HalfPipe<I, O = never> {
 		public transform?: (v: I, ctx: Context) => Result<O>,
 	) {}
 	/** The second checks to run */
-	checks: Array<Check<I>> = [];
-	checksProps: Record<any, any> = {};
+	checks: Check<I>[] = [];
 
 	clone(): this {
 		const res = clone(this);
 		res.checks = res.checks.slice();
-		res.checksProps = { ...res.checksProps };
 		return res;
 	}
 }
@@ -38,6 +43,10 @@ export class HalfPipe<I, O = never> {
 export class Context {
 	jsonPath: (string | number)[] = [];
 	errors: Errors = {};
+
+	errorFmt(name: string, props: Record<any, any>): any {
+		return enFormat(name, props);
+	}
 
 	clone(): Context {
 		const res = clone(this);
@@ -59,8 +68,8 @@ export class Context {
 		}
 		let success = true;
 		for (const c of check.checks ?? []) {
-			const message = c(input, this);
-			if (message) {
+			if (!c.valid(input, this)) {
+				const message = this.errorFmt(c.name, { input, ...c.props });
 				this.pushError({ input, message });
 				success = false;
 			}
@@ -77,19 +86,24 @@ export class Pipe<I = any, O = any> {
 	) {}
 
 	pipes: Array<Pipe<any, any>> = [];
+	registry: Record<PropertyKey, any> = {};
 
 	clone(): this {
 		const res = clone(this);
 		res.i = res.i.clone();
 		res.o = res.o.clone();
 		res.pipes = res.pipes.slice();
+		res.registry = { ...res.registry };
 		return res;
 	}
 
-	refine(check: Check<O>, props: Record<any, any> = {}): this {
+	refine(
+		valid: (data: O, ctx: Context) => boolean,
+		name: string,
+		props: Record<any, any>,
+	): this {
 		const res = this.clone();
-		res.o.checks.push(check);
-		Object.assign(res.o.checks, props);
+		res.o.checks.push({ valid, name, props });
 		return res;
 	}
 
@@ -142,6 +156,12 @@ export class Pipe<I = any, O = any> {
 	}
 	encode(output: O, ctx = new Context()): Result<I> {
 		return this.encodeAny(output, ctx);
+	}
+
+	register(key: PropertyKey, value: any): this {
+		const res = this.clone();
+		res.registry[key] = value;
+		return res;
 	}
 }
 

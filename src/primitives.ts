@@ -30,16 +30,19 @@ export { null_ as null };
 
 class Comparable<I, O> extends Pipe<I, O> {
 	gt(n: O) {
-		return this.refine((v) => (v > n ? "" : `must be > ${n}`), { gt: n });
+		return this.refine((v) => v > n, "gt", { n });
 	}
 	gte(n: O) {
-		return this.refine((v) => (v >= n ? "" : `must be >= ${n}`), { gte: n });
+		return this.refine((v) => v >= n, "gte", { n });
 	}
 	lt(n: O) {
-		return this.refine((v) => (v < n ? "" : `must be < ${n}`), { lt: n });
+		return this.refine((v) => v < n, "lt", { n });
 	}
 	lte(n: O) {
-		return this.refine((v) => (v <= n ? "" : `must be <= ${n}`), { lte: n });
+		return this.refine((v) => v <= n, "lte", { n });
+	}
+	eq(n: O) {
+		return this.refine((v) => v == n, "eq", { n });
 	}
 }
 
@@ -60,29 +63,21 @@ export class Arrayish<
 	},
 > extends Pipe<I, O> {
 	minLength(n: number) {
-		return this.refine(
-			(v) => (v.length >= n ? "" : `must have length >= ${n}`),
-			{ minLength: n },
-		);
+		return this.refine((v) => v.length >= n, "minLength", { n });
 	}
 	maxLength(n: number) {
-		return this.refine(
-			(v) => (v.length <= n ? "" : `must have length <= ${n}`),
-			{ maxLength: n },
-		);
+		return this.refine((v) => v.length <= n, "maxLength", { n });
 	}
 }
 
-class String extends Arrayish<string, string> {
+class String extends Pipe<string, string> {
 	constructor() {
 		const check = new HalfPipe("string", (v) => typeof v == "string");
 		super(check, check);
 	}
 
 	regex(re: RegExp) {
-		return this.refine((v) => (v.match(re) ? "" : `must match ${re.source}`), {
-			regex: re.source,
-		});
+		return this.refine((v) => !!v.match(re), "regex", { regex: re.source });
 	}
 }
 export function string(): String {
