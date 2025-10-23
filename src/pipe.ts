@@ -67,7 +67,7 @@ export class Context {
 
 	run<I, O>(input: any, halfPipe: HalfPipe<I, O>): Result<I> {
 		if (!halfPipe.typeCheck(input)) {
-			const message = this.errorFmt("invalidType", { expected: halfPipe.name });
+			const message = this.errorFmt("type", { expected: halfPipe.name });
 			this.pushError({ input, message });
 			return { success: false, errors: this.errors };
 		}
