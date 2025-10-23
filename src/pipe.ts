@@ -61,14 +61,13 @@ export class Context {
 	}
 
 	pushErrorFmt(name: string, input: any, props: Record<any, any>) {
-		const message = this.errorFmt(name, { input, ...props });
+		const message = this.errorFmt(name, props);
 		this.pushError({ input, message });
 	}
 
 	run<I, O>(input: any, halfPipe: HalfPipe<I, O>): Result<I> {
 		if (!halfPipe.typeCheck(input)) {
-			const message = this.errorFmt("type", { expected: halfPipe.name });
-			this.pushError({ input, message });
+			this.pushErrorFmt("type", input, { expected: halfPipe.name });
 			return { success: false, errors: this.errors };
 		}
 		let success = true;
