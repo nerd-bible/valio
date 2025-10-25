@@ -12,6 +12,7 @@ export function boolean() {
 	);
 }
 
+// biome-ignore lint/suspicious/noShadowRestrictedNames: point of lib
 export function undefined() {
 	return primitive<undefined>(
 		"undefined",

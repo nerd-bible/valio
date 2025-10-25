@@ -55,7 +55,7 @@ export class Context {
 	}
 
 	pushError(error: Error) {
-		const key = "." + this.jsonPath.join(".");
+		const key = `.${this.jsonPath.join(".")}`;
 		this.errors[key] ??= [];
 		this.errors[key].push(error);
 	}

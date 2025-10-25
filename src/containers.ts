@@ -1,5 +1,5 @@
-import { HalfPipe, Context, Pipe } from "./pipe";
 import type { Input, Output, Result } from "./pipe";
+import { type Context, HalfPipe, Pipe } from "./pipe";
 import * as p from "./primitives";
 
 class ValioArray<T> extends p.Arrayish<any[], T[]> {
@@ -240,7 +240,7 @@ class ValioObject<Shape extends Record<any, Pipe<any, any>>> extends Pipe<
 		const next = this.clone();
 		for (const k in next.shape) {
 			if (mask[k]) {
-				// @ts-ignore
+				// @ts-expect-error
 				next.shape[k] = union([next.shape[k], p.undefined()]);
 			}
 		}

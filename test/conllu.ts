@@ -1,6 +1,6 @@
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as z from "../src/index";
-import { readFileSync } from "node:fs";
 
 export const rowNumber = z.number().gt(0);
 export const intId = z.codecs.number().gt(0);

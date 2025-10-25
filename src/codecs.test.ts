@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { expect, test } from "bun:test";
 import * as v from "./index";
 
 test("number codec", () => {
@@ -18,11 +18,11 @@ test("number codec", () => {
 	});
 	expect(schema.decode("Infinity")).toEqual({
 		success: true,
-		output: Infinity,
+		output: Number.POSITIVE_INFINITY,
 	});
 	expect(schema.decode("-Infinity")).toEqual({
 		success: true,
-		output: -Infinity,
+		output: Number.NEGATIVE_INFINITY,
 	});
 	expect(schema.encode(1.3)).toEqual({ success: true, output: 1.3 });
 });
@@ -37,8 +37,11 @@ test("2 pipes", () => {
 			".": [{ input: 3, message: "must be > 5" }],
 		},
 	});
-	expect(schema.decode(undefined)).toEqual({ success: true, output: NaN });
-	expect(schema.decode(null)).toEqual({ success: true, output: NaN });
+	expect(schema.decode(undefined)).toEqual({
+		success: true,
+		output: Number.NaN,
+	});
+	expect(schema.decode(null)).toEqual({ success: true, output: Number.NaN });
 });
 
 test("array number codec", () => {
@@ -51,8 +54,8 @@ test("array number codec", () => {
 	expect(schema.decode(["NaN", "5", 5])).toEqual({
 		errors: {
 			".0": [
-				{ input: NaN, message: "must be > 4" },
-				{ input: NaN, message: "must be > 5" },
+				{ input: Number.NaN, message: "must be > 4" },
+				{ input: Number.NaN, message: "must be > 5" },
 			],
 			".1": [{ input: 5, message: "must be > 5" }],
 			".2": [{ input: 5, message: "must be > 5" }],

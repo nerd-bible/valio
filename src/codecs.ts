@@ -1,6 +1,6 @@
+import * as c from "./containers";
 import type { Context, Pipe, Result } from "./pipe";
 import * as p from "./primitives";
-import * as c from "./containers";
 
 export function custom<I, O>(
 	input: Pipe<I, any>,
@@ -18,7 +18,7 @@ export function custom<I, O>(
 }
 
 export function number(
-	parser = parseFloat,
+	parser = Number.parseFloat,
 ): p.Comparable<string | number | null | undefined, number> {
 	return custom(
 		c.union([p.string(), p.number(), p.null(), p.undefined()]),
@@ -27,10 +27,10 @@ export function number(
 			decode(input, ctx) {
 				if (typeof input == "number") return { success: true, output: input };
 				if (input == null || input.toLowerCase() == "nan")
-					return { success: true, output: NaN };
+					return { success: true, output: Number.NaN };
 
 				const output = parser(input);
-				if (!isNaN(output)) return { success: true, output };
+				if (!Number.isNaN(output)) return { success: true, output };
 
 				ctx.pushErrorFmt("coerce", input, { expected: "number" });
 				return { success: false, errors: ctx.errors };
