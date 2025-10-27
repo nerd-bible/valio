@@ -1,11 +1,11 @@
 name: Publish Package
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - master
 permissions:
-  id-token: write  # Required for OIDC
-  contents: read
+  id-token: write # Required for npm OIDC
+  contents: write # Required for bumping tag
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -16,4 +16,4 @@ jobs:
       - run: bun run fmt
       - run: bun test
       - run: bun run build
-      - run: bun publish
+      - run: ./bump-and-publish.sh
