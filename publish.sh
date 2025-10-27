@@ -13,8 +13,7 @@ if [[ -z $VERSION ]]; then
 	git push --tags origin master
 fi
 echo "Publishing $VERSION"
-cat package.json | \
-	jq ".version = \"${VERSION:1}\" |\
-	.repository.url = \"git+$GITHUB_SERVER_URL/$GITHUB_REPOSITORY\"" > package.json
+cat <<< $(jq ".version = \"${VERSION:1}\" |\
+	.repository.url = \"git+$GITHUB_SERVER_URL/$GITHUB_REPOSITORY\"" package.json) > package.json
 
 bunx npm@latest publish
