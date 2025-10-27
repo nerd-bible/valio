@@ -1,6 +1,8 @@
 name: Publish Package
 on:
   push:
+    tags:
+      - v*
     branches:
       - master
 permissions:
@@ -10,9 +12,11 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      - name: Print GitHub event action
+        run: echo "${{ github.event_name }}"
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # whole history needed for potential tag bump
       - uses: oven-sh/setup-bun@v2
       - run: bun ci
       - run: bun run build
