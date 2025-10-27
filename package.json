@@ -18,8 +18,5 @@
 	},
 	"repository": {
 		"url": "git+https://github.com/nerd-bible/valio"
-	},
-	"publishConfig": {
-		"access": "public"
 	}
 }
