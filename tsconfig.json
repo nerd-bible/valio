@@ -24,10 +24,11 @@
 		// Let's also build each package.
 		"rootDir": "${configDir}/src",
 		"outDir": "${configDir}/dist",
-		"composite": true,
-		"incremental": true,
+
+		// Let's emit .d.ts and .d.ts.map
+		"declaration": true,
 		"declarationMap": true,
-		"customConditions": ["@openbible/source"]
+		"sourceMap": true
 	},
 	"include": ["${configDir}/src"],
 	"exclude": ["**/*.test.*", "**/__snapshots__/*"]

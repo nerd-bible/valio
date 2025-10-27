@@ -1,7 +1,9 @@
 {
 	"name": "@nerd-bible/valio",
 	"version": "0.0.1",
-	"module": "index.ts",
+	"type": "module",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.0",
 		"@types/bun": "latest"
@@ -13,6 +15,5 @@
 	},
 	"peerDependencies": {
 		"typescript": "^5"
-	},
-	"type": "module"
+	}
 }
