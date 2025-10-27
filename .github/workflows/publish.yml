@@ -1,11 +1,11 @@
 name: Publish Package
 on:
   push:
-    tags:
-      - v*
+    branches:
+      - master
 permissions:
-  id-token: write # Required for npm OIDC
-  contents: read
+  id-token: write # npm OIDC
+  contents: write # push tags
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -16,4 +16,4 @@ jobs:
       - run: bun run build
       - run: bun test
       - run: bun run fmt
-      - run: bunx npm@latest publish
+      - run: ./publish.sh
