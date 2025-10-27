@@ -14,9 +14,5 @@
   },
   "peerDependencies": {
     "typescript": "^5.9.3"
-  },
-  "version": "adf",
-  "repository": {
-    "url": "git+/"
   }
 }
