@@ -1,11 +1,12 @@
 # valio
 
-Encode and decode to Typescript types with extensible error handling.
+Encode and decode Typescript types with extensible error handling.
 
 ## Why?
 
 I like [Zod](https://zod.dev), but its codecs don't support
-[custom error contexts.](https://github.com/colinhacks/zod/issues/)
+[custom error contexts.](https://github.com/colinhacks/zod/issues/) I tried
+adding support to Zod but found it easier to start from scratch.
 
 ## Theory
 
@@ -54,6 +55,7 @@ expect(schema.encode(3)).toEqual({
 ```
 
 There are common builtin codecs for coercion.
+
 ```ts
 import * as v from "@nerd-bible/valio";
 
@@ -121,5 +123,3 @@ expect(schema.decode(3, new MyContext())).toEqual({
 	errors: { ".": [{ input: 3, message: "You done messed up" }] },
 });
 ```
-
-Those are the highlights. Read the `.test.ts` files for the rest.
