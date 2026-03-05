@@ -1,5 +1,6 @@
-import { expect, test } from "bun:test";
-import * as v from "./index";
+import { test } from "node:test";
+import expect from "expect";
+import * as v from "./index.ts";
 
 test("array", () => {
 	const schema = v.array(v.number());

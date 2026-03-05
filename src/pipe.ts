@@ -23,21 +23,23 @@ export class HalfPipe<I, O = never> {
 	name: string;
 	typeCheck: (v: any) => v is I;
 	transform?: (v: I, ctx: Context) => Result<O>;
+	/** Checks to run after type check */
+	checks: Check<I>[] = [];
 
 	constructor(
 		name: string,
 		typeCheck: (v: any) => v is I,
 		transform?: (v: I, ctx: Context) => Result<O>,
+		checks: Check<I>[] = [],
 	) {
 		this.name = name;
 		this.typeCheck = typeCheck;
 		this.transform = transform;
+		this.checks = checks;
 	}
-	/** The second checks to run */
-	checks: Check<I>[] = [];
 
 	clone(): HalfPipe<I, O> {
-		return new HalfPipe(this.name, this.typeCheck, this.transform);
+		return new HalfPipe(this.name, this.typeCheck, this.transform, this.checks);
 	}
 }
 
