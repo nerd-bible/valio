@@ -1,0 +1,179 @@
+import enFormat from "./locales/en.ts";
+
+export type Error = { input: any; message: string };
+export type Errors = { [inputPath: string]: Error[] };
+export type Result<T> =
+	| { success: true; output: T }
+	| { success: false; errors: any };
+
+function clone<T>(obj: T): T {
+	return Object.create(
+		Object.getPrototypeOf(obj),
+		Object.getOwnPropertyDescriptors(obj),
+	);
+}
+
+interface Check<T> {
+	valid(data: T, ctx: Context): boolean;
+	name: string;
+	props: Record<any, any>;
+}
+
+export class HalfPipe<I, O = never> {
+	name: string;
+	typeCheck: (v: any) => v is I;
+	transform?: (v: I, ctx: Context) => Result<O>;
+
+	constructor(
+		name: string,
+		typeCheck: (v: any) => v is I,
+		transform?: (v: I, ctx: Context) => Result<O>,
+	) {
+		this.name = name;
+		this.typeCheck = typeCheck;
+		this.transform = transform;
+	}
+	/** The second checks to run */
+	checks: Check<I>[] = [];
+
+	clone(): HalfPipe<I, O> {
+		return new HalfPipe(this.name, this.typeCheck, this.transform);
+	}
+}
+
+/** During encoding, decoding, or validation. */
+export class Context {
+	jsonPath: (string | number)[] = [];
+	errors: Errors = {};
+
+	errorFmt(name: string, props: Record<any, any>): any {
+		return enFormat(name, props);
+	}
+
+	clone(): Context {
+		const res = new Context();
+		res.jsonPath = this.jsonPath.slice();
+		res.errors = { ...this.errors };
+		return res;
+	}
+
+	pushError(error: Error) {
+		const key = `.${this.jsonPath.join(".")}`;
+		this.errors[key] ??= [];
+		this.errors[key].push(error);
+	}
+
+	pushErrorFmt(name: string, input: any, props: Record<any, any>) {
+		const message = this.errorFmt(name, props);
+		this.pushError({ input, message });
+	}
+
+	run<I, O>(input: any, halfPipe: HalfPipe<I, O>): Result<I> {
+		if (!halfPipe.typeCheck(input)) {
+			this.pushErrorFmt("type", input, { expected: halfPipe.name });
+			return { success: false, errors: this.errors };
+		}
+		let success = true;
+		for (const c of halfPipe.checks ?? []) {
+			if (!c.valid(input, this)) {
+				this.pushErrorFmt(c.name, input, c.props);
+				success = false;
+			}
+		}
+		if (!success) return { success, errors: this.errors };
+		return { success, output: input };
+	}
+}
+
+export class Pipe<I = any, O = any> {
+	i: HalfPipe<I, O>;
+	o: HalfPipe<O, I>;
+
+	constructor(i: HalfPipe<I, O>, o: HalfPipe<O, I>) {
+		this.i = i;
+		this.o = o;
+	}
+
+	pipes: Pipe<any, any>[] = [];
+	registry: Record<PropertyKey, any> = {};
+	debug = false;
+
+	clone(): this {
+		const res = clone(this);
+		res.i = res.i.clone();
+		res.o = res.o.clone();
+		res.pipes = res.pipes.slice();
+		res.registry = { ...res.registry };
+		return res;
+	}
+
+	refine(
+		valid: (data: O, ctx: Context) => boolean,
+		name: string,
+		props: Record<any, any> = {},
+	): this {
+		const res = this.clone();
+		res.o.checks.push({ valid, name, props });
+		return res;
+	}
+
+	pipe<I2 extends O, O2>(pipe: Pipe<I2, O2>): Pipe<I, O2> {
+		const res: Pipe<any, any> = this.clone();
+		res.pipes.push(pipe);
+		return res;
+	}
+
+	decodeAny(input: any, ctx = new Context()): Result<O> {
+		// 1. Verify input
+		let res: Result<any> = ctx.run(input, this.i);
+		if (!res.success) return res;
+		// 2. Transform input to output
+		if (this.i.transform) {
+			res = this.i.transform(res.output, ctx);
+			if (!res.success) return res;
+		}
+		// 3. Verify output
+		res = ctx.run(res.output, this.o);
+		if (!res.success) return res;
+		// 4. Next
+		for (const p of this.pipes) {
+			res = p.decode(res.output, ctx);
+			if (!res.success) return res;
+		}
+		return res;
+	}
+	decode(input: I, ctx = new Context()): Result<O> {
+		return this.decodeAny(input, ctx);
+	}
+
+	encodeAny(output: any, ctx = new Context()): Result<I> {
+		// 1. Next
+		let res: Result<any> = { success: true, output };
+		for (let i = this.pipes.length - 1; i >= 0; i--) {
+			res = this.pipes[i]!.encodeAny(res.output, ctx);
+			if (!res.success) return res;
+		}
+		// 2. Verify output
+		res = ctx.run(res.output, this.o);
+		if (!res.success) return res;
+		// 3. Transform output to input
+		if (this.o.transform) {
+			res = this.o.transform(res.output, ctx);
+			if (!res.success) return res;
+		}
+		// 4. Verify input
+		return ctx.run(res.output, this.i);
+	}
+	encode(output: O, ctx = new Context()): Result<I> {
+		return this.encodeAny(output, ctx);
+	}
+
+	register(key: PropertyKey, value: any): this {
+		const res = this.clone();
+		res.registry[key] = value;
+		return res;
+	}
+}
+
+export type Input<T extends Pipe> = Parameters<T["decode"]>[0];
+export type Output<T extends Pipe> = Parameters<T["encode"]>[0];

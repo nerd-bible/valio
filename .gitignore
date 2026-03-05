@@ -1,0 +1,8 @@
+node_modules
+dist
+target
+tmp
+pkgs/*/tsconfig.tsbuildinfo
+.DS_Store
+generated
+*.tsbuildinfo

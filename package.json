@@ -1,0 +1,23 @@
+{
+	"name": "@nerd-bible/valio",
+	"access": "public",
+	"type": "module",
+	"exports": {
+		".": {
+			"import": {
+				"nbsource": "./src/index.ts",
+				"node": "./dist/index.js"
+			}
+		},
+		"./package.json": "./package.json"
+	},
+	"dependencies": {
+		"typescript": "^5.9.3"
+	},
+	"scripts": {
+		"build": "tsc"
+	},
+	"devDependencies": {
+		"@types/node": "^25.3.3"
+	}
+}
