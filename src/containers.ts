@@ -11,34 +11,32 @@ class ValioArray<T> extends p.Arrayish<any[], T[]> {
 
 	constructor(element: Pipe<any, T>) {
 		super(
-			new HalfPipe(
-				"array",
-				ValioArray.typeCheck,
-				function parseAnyArr(input: any[], ctx: Context): Result<T[]> {
-					const output = new Array<T>(input.length);
-					let success = true;
+			new HalfPipe("array", ValioArray.typeCheck, function parseAnyArr(
+				input: any[],
+				ctx: Context,
+			): Result<T[]> {
+				const output = new Array<T>(input.length);
+				let success = true;
 
-					const length = ctx.jsonPath.length;
-					for (let i = 0; i < input.length; i++) {
-						ctx.jsonPath[length] = i.toString();
-						const decoded = element.decode(input[i], ctx);
-						if (decoded.success) output[i] = decoded.output;
-						else success = false;
-					}
-					ctx.jsonPath.length = length;
+				const length = ctx.jsonPath.length;
+				for (let i = 0; i < input.length; i++) {
+					ctx.jsonPath[length] = i.toString();
+					const decoded = element.decode(input[i], ctx);
+					if (decoded.success) output[i] = decoded.output;
+					else success = false;
+				}
+				ctx.jsonPath.length = length;
 
-					if (!success) return { success, errors: ctx.errors };
-					return { success, output };
-				},
-			),
-			new HalfPipe(
-				`array<${element.o.name}>`,
-				function isArrT(v: any): v is T[] {
-					if (!ValioArray.typeCheck(v)) return false;
-					for (const e of v) if (!element.o.typeCheck(e)) return false;
-					return true;
-				},
-			),
+				if (!success) return { success, errors: ctx.errors };
+				return { success, output };
+			}),
+			new HalfPipe(`array<${element.o.name}>`, function isArrT(
+				v: any,
+			): v is T[] {
+				if (!ValioArray.typeCheck(v)) return false;
+				for (const e of v) if (!element.o.typeCheck(e)) return false;
+				return true;
+			}),
 		);
 		this.element = element;
 	}
@@ -60,37 +58,33 @@ class ValioRecord<K extends PropertyKey, V> extends Pipe<
 
 	constructor(keyPipe: Pipe<any, K>, valPipe: Pipe<any, V>) {
 		super(
-			new HalfPipe(
-				"object",
-				ValioRecord.typeCheck,
-				function anyToRecordKV(
-					input: Record<any, any>,
-					ctx: Context,
-				): Result<Record<K, V>> {
-					const output = {} as Record<K, V>;
+			new HalfPipe("object", ValioRecord.typeCheck, function anyToRecordKV(
+				input: Record<any, any>,
+				ctx: Context,
+			): Result<Record<K, V>> {
+				const output = {} as Record<K, V>;
 
-					let success = true;
-					const length = ctx.jsonPath.length;
-					for (const key in input) {
-						ctx.jsonPath[length] = key;
-						const decodedKey = keyPipe.decode(key, ctx);
-						if (decodedKey.success) {
-							const decodedVal = valPipe.decode((input as any)[key], ctx);
-							if (decodedVal.success) {
-								output[decodedKey.output] = decodedVal.output;
-							} else {
-								success = false;
-							}
+				let success = true;
+				const length = ctx.jsonPath.length;
+				for (const key in input) {
+					ctx.jsonPath[length] = key;
+					const decodedKey = keyPipe.decode(key, ctx);
+					if (decodedKey.success) {
+						const decodedVal = valPipe.decode((input as any)[key], ctx);
+						if (decodedVal.success) {
+							output[decodedKey.output] = decodedVal.output;
 						} else {
 							success = false;
 						}
+					} else {
+						success = false;
 					}
-					ctx.jsonPath.length = length;
+				}
+				ctx.jsonPath.length = length;
 
-					if (!success) return { success, errors: ctx.errors };
-					return { success, output };
-				},
-			),
+				if (!success) return { success, errors: ctx.errors };
+				return { success, output };
+			}),
 			new HalfPipe(
 				`record<${keyPipe.o.name},${valPipe.o.name}>`,
 				function recordCheckV(v): v is Record<K, V> {
@@ -187,10 +181,8 @@ export class ValioObject<
 
 	constructor(shape: Shape, isLoose: boolean) {
 		super(
-			new HalfPipe(
-				"object",
-				ValioObject.typeCheck,
-				(data, ctx) => this.transformInput(data, ctx),
+			new HalfPipe("object", ValioObject.typeCheck, (data, ctx) =>
+				this.transformInput(data, ctx),
 			),
 			new HalfPipe(
 				`{${Object.entries(shape)

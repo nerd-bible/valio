@@ -35,8 +35,8 @@ const schema = v.number(); // Pipe<number, number>
 
 expect(schema.decode(5)).toEqual({ success: true, output: 5 });
 expect(schema.decodeAny("5")).toEqual({
-    success: false,
-    errors: { ".": [{ input: "5", message: "not type number" }] },
+	success: false,
+	errors: { ".": [{ input: "5", message: "not type number" }] },
 });
 ```
 
