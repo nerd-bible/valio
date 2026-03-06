@@ -12,10 +12,13 @@
   },
   "scripts": {
     "build": "tsc -p ./tsconfig.build.json",
-    "test": "node --test"
+    "test": "node --test",
+    "fmt": "prettier --check --ignore-path .gitignore .",
+    "fmt-fix": "npm run fmt -- --write"
   },
+  "prettier": "@nerd-bible/config/prettier",
   "devDependencies": {
-    "@nerd-bible/config": "^0.0.4",
+    "@nerd-bible/config": "^0.1.0",
     "@types/node": "^25.3.3",
     "expect": "^30.2.0",
     "typescript": "^5.9.3"
