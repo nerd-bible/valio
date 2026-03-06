@@ -1,28 +1,27 @@
 {
-	"name": "@nerd-bible/valio",
-	"access": "public",
-	"type": "module",
-	"exports": {
-		".": {
-			"import": {
-				"nbsource": "./src/index.ts",
-				"node": "./dist/index.js"
-			}
-		},
-		"./package.json": "./package.json"
-	},
-	"scripts": {
-		"build": "tsc -p ./tsconfig.build.json",
-		"test": "node --test"
-	},
-	"devDependencies": {
-		"@types/chai": "^5.2.3",
-		"@types/node": "^25.3.3",
-		"@voxpelli/node-test-pretty-reporter": "^1.1.2",
-		"chai": "^6.2.2",
-		"expect": "^30.2.0",
-		"node-test-reporter": "^1.2.0",
-		"picocolors": "^1.1.1",
-		"typescript": "^5.9.3"
-	}
+  "name": "@nerd-bible/valio",
+  "access": "public",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": {
+        "nbsource": "./src/index.ts",
+        "node": "./dist/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -p ./tsconfig.build.json",
+    "test": "node --test --test-reporter ./reporter.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "expect": "^30.2.0",
+    "typescript": "^5.9.3"
+  },
+  "version": "v0.0.1",
+  "repository": {
+    "url": "git+https://github.com/nerd-bible/valio"
+  }
 }
