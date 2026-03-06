@@ -3,20 +3,23 @@
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
-const repoUrl = process.argv.slice(2).find(a => !a.startsWith("--"));
+const repoUrl = process.argv.slice(2).find((a) => !a.startsWith("--"));
 if (!repoUrl) throw Error("Required arg: repo URL");
-const dry = process.argv.includes("--dry"); 
+const dry = process.argv.includes("--dry");
 
 function execGit(args: string, allowFailure = false) {
 	try {
-	return execSync(`git ${args}`, { encoding: "utf8", stdio: "ignore" });
+		return execSync(`git ${args}`, {
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "ignore"],
+		}).trim();
 	} catch (err) {
-		if (!allowFailure) throw err
+		if (!allowFailure) throw err;
 	}
 }
 
 execGit("fetch --tags");
-const tagCmd = "describe --tags --abbrev=0 --match=v[0-9]*.[0-9]*.[0-9]*";
+const tagCmd = "describe --tags --abbrev=0 --match='v[0-9]*.[0-9]*.[0-9]*'";
 let version = execGit(`${tagCmd} --exact-match`, true);
 
 if (!version) {
@@ -33,6 +36,8 @@ if (!version) {
 		execGit(`tag ${version}`);
 		execGit("push --tags origin master");
 	}
+} else {
+	console.log("Using manual tag", version);
 }
 
 if (!dry) {
