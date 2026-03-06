@@ -81,3 +81,15 @@ test("pipe", () => {
 		},
 	});
 });
+
+test("date comparison", () => {
+	const schema = v.date().gt(new Date(2020, 1));
+
+	expect(schema.decode(new Date(2021, 1))).toEqual({
+		success: true,
+		output: new Date(2021, 1),
+	});
+
+	// error message has timezone-dependent string
+	expect(schema.decode(new Date(2010, 1)).success).toEqual(false);
+});
