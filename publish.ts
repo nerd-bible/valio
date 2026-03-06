@@ -43,10 +43,10 @@ if (!version) {
 if (!dry) {
 	console.log("Writing temporary package.json");
 	const pkg = JSON.parse(readFileSync("package.json", "utf8"));
-	pkg.version = version;
+	pkg.version = version.substring(1);
 	pkg.repository = { url: `git+${repoUrl}` };
 	writeFileSync("package.json", JSON.stringify(pkg, null, 2));
 
 	console.log("Publishing to NPM", version);
-	execSync("npm publish");
+	execSync("npm publish --provenance --access public");
 }

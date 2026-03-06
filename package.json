@@ -1,6 +1,5 @@
 {
   "name": "@nerd-bible/valio",
-  "access": "public",
   "type": "module",
   "exports": {
     ".": {
@@ -19,9 +18,5 @@
     "@types/node": "^25.3.3",
     "expect": "^30.2.0",
     "typescript": "^5.9.3"
-  },
-  "version": "v0.0.1",
-  "repository": {
-    "url": "git+https://github.com/nerd-bible/valio"
   }
 }
