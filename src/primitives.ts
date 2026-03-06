@@ -115,3 +115,13 @@ function enum_<T extends Lit>(literals: readonly T[]): ValioEnum<T> {
 	return new ValioEnum(literals);
 }
 export { enum_ as enum };
+
+class ValioDate extends Comparable<Date, Date> {
+	constructor() {
+		const half = new HalfPipe("date", (v: any): v is Date => v instanceof Date);
+		super(half, half);
+	}
+}
+export function date(): ValioDate {
+	return new ValioDate();
+}
