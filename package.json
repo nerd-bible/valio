@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "tsc -p ./tsconfig.build.json",
-    "test": "node --test --test-reporter ./reporter.ts"
+    "test": "node --test"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",
