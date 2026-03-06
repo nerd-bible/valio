@@ -5,7 +5,8 @@
 		".": {
 			"import": {
 				"nbsource": "./src/index.ts",
-				"node": "./dist/index.js"
+				"node": "./dist/index.js",
+				"types": "./dist/index.d.ts"
 			}
 		},
 		"./package.json": "./package.json"
