@@ -23,4 +23,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - run: npm install
       - run: npm test
-      - run: NODE_AUTH_TOKEN="" node ./publish.ts "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+      - run: echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+      - name: Clear auth token for OIDC
+        run: echo "NODE_AUTH_TOKEN=" >> $GITHUB_ENV
+      - run: node ./publish.ts "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
