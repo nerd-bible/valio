@@ -48,5 +48,5 @@ if (!dry) {
 	writeFileSync("package.json", JSON.stringify(pkg, null, 2));
 
 	console.log("Publishing to NPM", version);
-	execSync("npm publish --provenance --access public --verbose");
+	execSync("npm publish");
 }
