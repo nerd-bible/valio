@@ -23,5 +23,5 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - run: npm install
       - run: npm test
-      - run: echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+      - run: npm install -g npm@latest
       - run: node ./publish.ts "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
