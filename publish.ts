@@ -46,7 +46,4 @@ if (!dry) {
 	pkg.version = version.substring(1);
 	pkg.repository = { url: repoUrl };
 	writeFileSync("package.json", JSON.stringify(pkg, null, 2));
-
-	console.log("Publishing to NPM", version);
-	execSync("npm publish");
 }
