@@ -1,58 +1,58 @@
 import { test } from "node:test";
-import { deepEqual } from "node:assert";
+import expect from "expect";
 import * as v from "./index.ts";
 
 test("number codec", () => {
 	const schema = v.codecs.number();
 
-	deepEqual(schema.decode("13"), { success: true, output: 13 });
-	deepEqual(schema.lt(12).decode("13"), {
+	expect(schema.decode("13")).toEqual({ success: true, output: 13 });
+	expect(schema.lt(12).decode("13")).toEqual({
 		success: false,
 		errors: { ".": [{ input: 13, message: "must be < 12" }] },
 	});
-	deepEqual(schema.decode("-1.3"), { success: true, output: -1.3 });
-	deepEqual(schema.decode("asdf"), {
+	expect(schema.decode("-1.3")).toEqual({ success: true, output: -1.3 });
+	expect(schema.decode("asdf")).toEqual({
 		success: false,
 		errors: {
 			".": [{ input: "asdf", message: "could not coerce to number" }],
 		},
 	});
-	deepEqual(schema.decode("Infinity"), {
+	expect(schema.decode("Infinity")).toEqual({
 		success: true,
 		output: Number.POSITIVE_INFINITY,
 	});
-	deepEqual(schema.decode("-Infinity"), {
+	expect(schema.decode("-Infinity")).toEqual({
 		success: true,
 		output: Number.NEGATIVE_INFINITY,
 	});
-	deepEqual(schema.encode(1.3), { success: true, output: 1.3 });
+	expect(schema.encode(1.3)).toEqual({ success: true, output: 1.3 });
 });
 
 test("2 pipes", () => {
 	const schema = v.codecs.number();
 	const next = schema.pipe(v.number().gt(5));
 
-	deepEqual(next.decode("3"), {
+	expect(next.decode("3")).toEqual({
 		success: false,
 		errors: {
 			".": [{ input: 3, message: "must be > 5" }],
 		},
 	});
-	deepEqual(schema.decode(undefined), {
+	expect(schema.decode(undefined)).toEqual({
 		success: true,
 		output: Number.NaN,
 	});
-	deepEqual(schema.decode(null), { success: true, output: Number.NaN });
+	expect(schema.decode(null)).toEqual({ success: true, output: Number.NaN });
 });
 
 test("array number codec", () => {
 	const schema = v.array(v.codecs.number().gt(4).gt(5));
 
-	deepEqual(schema.decode(["10a", "11b"]), {
+	expect(schema.decode(["10a", "11b"])).toEqual({
 		success: true,
 		output: [10, 11],
 	});
-	deepEqual(schema.decode(["NaN", "5", 5]), {
+	expect(schema.decode(["NaN", "5", 5])).toEqual({
 		errors: {
 			".0": [
 				{ input: Number.NaN, message: "must be > 4" },
@@ -66,24 +66,24 @@ test("array number codec", () => {
 });
 
 test("boolean codec", () => {
-	const schema = v.codecs.boolean({ true: /yes/, false: /no/ });
+	const schema = v.codecs.boolean({ true: /yes|^[1-9]/, false: /no|^0?$/ });
 
-	deepEqual(schema.decode("yes"), { success: true, output: true });
-	deepEqual(schema.decode("no"), { success: true, output: false });
-	deepEqual(schema.decode(""), { success: true, output: false });
-	deepEqual(schema.decode("1"), { success: true, output: true });
-	deepEqual(schema.decode(false), { success: true, output: false });
-	deepEqual(schema.decode(0), { success: true, output: false });
+	expect(schema.decode("yes")).toEqual({ success: true, output: true });
+	expect(schema.decode("no")).toEqual({ success: true, output: false });
+	expect(schema.decode("")).toEqual({ success: true, output: false });
+	expect(schema.decode("1")).toEqual({ success: true, output: true });
+	expect(schema.decode(false)).toEqual({ success: true, output: false });
+	expect(schema.decode(0)).toEqual({ success: true, output: false });
 });
 
 // test("string codec", () => {
 // 	const schema = v.codecs.string();
 //
-// 	deepEquals(schema.decode(13), { success: true, output: "13" });
-// 	deepEquals(schema.decode(null), { success: true, output: "null" });
-// 	deepEquals(schema.encode(null as any), {
+// 	expect(schema.decode(13)).toEqual({ success: true, output: "13" });
+// 	expect(schema.decode(null)).toEqual({ success: true, output: "null" });
+// 	expect(schema.encode(null as any)).toEqual({
 // 		success: false,
 // 		errors: { ".": [ { input: null, message: "not type string" } ] },
 // 	});
-// 	deepEquals(schema.encode("asdf"), { success: true, output: "asdf" });
+// 	expect(schema.encode("asdf")).toEqual({ success: true, output: "asdf" });
 // });

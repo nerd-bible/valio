@@ -45,6 +45,8 @@ export function boolean(opts: {
 				if (opts.true?.test(input)) return { success: true, output: true };
 				if (opts.false?.test(input)) return { success: true, output: false };
 			}
+			if (typeof input === "number")
+				return { success: true, output: Boolean(input) };
 
 			ctx.pushErrorFmt("coerce", input, { expected: "boolean" });
 			return { success: false, errors: ctx.errors };

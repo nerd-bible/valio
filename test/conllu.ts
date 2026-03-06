@@ -1,25 +1,24 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import * as z from "../src/index";
+import * as z from "../src/index.ts";
+import { test } from "node:test";
+import expect from "expect";
 
-export const rowNumber = z.number().gt(0);
-export const intId = z.codecs.number().gt(0);
-export const rowId = z.union([
+const intId = z.codecs.number().gt(0);
+const rowId = z.union([
 	// Normal integer like 1, 2
 	intId,
 	// Multiword token like 1-4 or 1.2-4.2
-	z
-		.string()
-		.regex(/[1-9][0-9]*\.\d+-\d+\.\d+/),
+	z.string().regex(/[1-9][0-9]*\.\d+-\d+\.\d+/),
 ]);
 
-export const boolean = z.codecs.boolean({
+const boolean = z.codecs.boolean({
 	true: /yes|true/,
 	false: /no|false/,
 });
-export const primitive = z.union([z.string(), boolean, z.codecs.number()]);
+const primitive = z.union([z.string(), boolean, z.codecs.number()]);
 
-export function recordConllu(delims = { prop: "|", value: "=" }) {
+function recordConllu(delims = { prop: "|", value: "=" }) {
 	return z.codecs.custom(z.string(), z.record(z.string(), primitive), {
 		decode(value: string, ctx: z.Context) {
 			let success = true;
@@ -181,9 +180,9 @@ const sentenceConllu = z.codecs.custom(z.string(), sentence, {
 });
 
 // Makes sure syntax is followed and required fields are included.
-export const normal = z.codecs.custom(z.string(), z.array(sentence), {
+const normal = z.codecs.custom(z.string(), z.array(sentence), {
 	decode(str, ctx) {
-		const output: z.Output<typeof sentence>[]  = [];
+		const output: z.Output<typeof sentence>[] = [];
 		const split = str.split(/\r?\n\r?\n/);
 		ctx.jsonPath[0] = 1;
 		for (const s of split) {
@@ -208,18 +207,20 @@ export const normal = z.codecs.custom(z.string(), z.array(sentence), {
 	},
 });
 
-// const decoded = wordConllu.decode(
-// 		"1	In	in	ADP	IN	_	0	case	3:foo	Verse=1|SourceMap=1",
-// 	);
-// if (decoded.success) {
-// 	console.dir(decoded.output, { depth: null });
-// 	console.log(wordConllu.encode(decoded.output).output)
-// }
+test("parses and encodes gum", () => {
+	// const decoded = wordConllu.decode(
+	// 		"1	In	in	ADP	IN	_	0	case	3:foo	Verse=1|SourceMap=1",
+	// 	);
+	// if (decoded.success) {
+	// 	console.dir(decoded.output, { depth: null });
+	// 	console.log(wordConllu.encode(decoded.output).output)
+	// }
 
-const text = readFileSync(join(import.meta.dir, "gum.conllu"), "utf8");
-const parsed = normal.decode(text);
-// console.dir(parsed, { depth: null });
-if (parsed.success) {
-	const reencoded = normal.encode(parsed.output);
-	if (reencoded.success) console.log(reencoded.output);
-}
+	const text = readFileSync(join(import.meta.dirname, "gum.conllu"), "utf8");
+	const parsed = normal.decode(text);
+	expect(parsed.errors).toBeUndefined();
+	if (parsed.success) {
+		const reencoded = normal.encode(parsed.output);
+		expect(reencoded.errors).toBeUndefined();
+	}
+});

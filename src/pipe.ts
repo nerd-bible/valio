@@ -39,7 +39,12 @@ export class HalfPipe<I, O = never> {
 	}
 
 	clone(): HalfPipe<I, O> {
-		return new HalfPipe(this.name, this.typeCheck, this.transform, this.checks);
+		return new HalfPipe(
+			this.name,
+			this.typeCheck,
+			this.transform,
+			this.checks.slice(),
+		);
 	}
 }
 
