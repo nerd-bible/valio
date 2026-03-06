@@ -23,5 +23,5 @@ jobs:
           registry-url: "https://registry.npmjs.org"
       - run: npm install
       - run: npm test
-      - run: npx -p @nerd-bible pkgWrite
+      - run: npx -p @nerd-bible/config pkgWrite
       - run: npm publish --verbose
