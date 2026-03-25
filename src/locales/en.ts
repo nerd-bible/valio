@@ -4,6 +4,7 @@ const templates: Record<string, string> = {
 	gte: "must be >= {$n}",
 	lte: "must be <= {$n}",
 	eq: "must be {$n}",
+	neq: "must not be {$n}",
 	minLength: "must have length <= {$n}",
 	maxLength: "must have length >= {$n}",
 	regex: "must match {$regex}",

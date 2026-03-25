@@ -45,6 +45,9 @@ export class Comparable<I, O> extends Pipe<I, O> {
 	eq(n: O) {
 		return this.refine((v) => v === n, "eq", { n });
 	}
+	neq(n: O) {
+		return this.refine((v) => v !== n, "neq", { n });
+	}
 }
 
 class ValioNumber extends Comparable<number, number> {
