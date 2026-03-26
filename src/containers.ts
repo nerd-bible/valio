@@ -152,8 +152,16 @@ export function union<T extends Readonly<Pipe[]>>(options: T): Union<T> {
 	return new Union(options);
 }
 
+// Undefined means you're fine with records being undefined. If you want the
+// record explicitly, use `null` instead.
 type ObjectOutput<Shape extends Record<string, Pipe<any, any>>> = {
-	[K in keyof Shape]: Output<Shape[K]>;
+	[K in keyof Shape as [undefined] extends [Output<Shape[K]>]
+		? never
+		: K]: Output<Shape[K]>;
+} & {
+	[K in keyof Shape as [undefined] extends [Output<Shape[K]>]
+		? K
+		: never]?: Output<Shape[K]>;
 };
 type Mask<Keys extends PropertyKey> = { [K in Keys]?: true };
 type Identity<T> = T;

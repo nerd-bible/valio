@@ -87,7 +87,7 @@ test("nested object", () => {
 });
 
 test("partial object", () => {
-	const o1 = v.object({ foo: v.number().gt(4) }).partial();
+	const o1 = v.object({ foo: v.number().gt(4), bar: v.number() }).partial();
 	const o2 = v.object({ foo: v.number().gt(4) }).partial({ foo: true });
 	type O = v.Output<typeof o2>;
 
