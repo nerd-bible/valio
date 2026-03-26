@@ -252,7 +252,7 @@ export class ValioObject<
 	}
 
 	partial<M extends Mask<keyof Shape>>(
-		mask: M,
+		mask?: M,
 	): ValioObject<{
 		[k in keyof Shape]: k extends keyof M
 			? Pipe<Input<Shape[k]>, Output<Shape[k]> | undefined>
@@ -260,7 +260,7 @@ export class ValioObject<
 	}> {
 		const next = this.clone();
 		for (const k in next.shape) {
-			if (mask[k]) {
+			if (!mask || mask[k]) {
 				// @ts-expect-error
 				next.shape[k] = union([next.shape[k], p.undefined()]);
 			}

@@ -87,21 +87,24 @@ test("nested object", () => {
 });
 
 test("partial object", () => {
-	const o = v.object({ foo: v.number().gt(4) }).partial({ foo: true });
-	type O = v.Output<typeof o>;
+	const o1 = v.object({ foo: v.number().gt(4) }).partial();
+	const o2 = v.object({ foo: v.number().gt(4) }).partial({ foo: true });
+	type O = v.Output<typeof o2>;
 
-	expect(o.decode({ foo: 10 })).toEqual({
-		success: true,
-		output: { foo: 10 } as O,
-	});
-	expect(o.decode({ foo: undefined })).toEqual({
-		success: true,
-		output: { foo: undefined } as O,
-	});
-	expect(o.decode({})).toEqual({
-		success: true,
-		output: {} as O,
-	});
+	for (const o of [o1, o2]) {
+		expect(o.decode({ foo: 10 })).toEqual({
+			success: true,
+			output: { foo: 10 } as O,
+		});
+		expect(o.decode({ foo: undefined })).toEqual({
+			success: true,
+			output: { foo: undefined } as O,
+		});
+		expect(o.decode({})).toEqual({
+			success: true,
+			output: {} as O,
+		});
+	}
 });
 
 test("pick object", () => {
