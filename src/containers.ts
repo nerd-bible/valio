@@ -284,6 +284,17 @@ export class ValioObject<
 		return next as any;
 	}
 
+	extendPartial<T extends Record<any, Pipe<any, any>>>(
+		shape: T,
+	): ValioObject<Extend<Shape, { [k in keyof T]: Pipe<Input<T[k]>, Output<T[k]> | undefined> }>> {
+		const next = this.clone();
+		for (const k in shape) {
+			// @ts-expect-error
+			next.shape[k] = union([shape[k], p.undefined()]);
+		}
+		return next as any;
+	}
+
 	loose<T = any>(
 		isLoose = true,
 	): ValioObject<Shape & { [k: string]: Pipe<T, T> }> {

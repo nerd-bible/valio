@@ -194,6 +194,31 @@ test("extend object", () => {
 	});
 });
 
+test("extendPartial object", () => {
+	const o = v.object({ foo: v.number().gt(4) }).extendPartial({ bar: v.number() });
+	type O = v.Output<typeof o>;
+
+	expect(o.decode({ foo: 10 })).toEqual({
+		success: true,
+		output: { foo: 10 } as O,
+	});
+	expect(o.decode({ foo: 10, bar: 5 })).toEqual({
+		success: true,
+		output: { foo: 10, bar: 5 } as O,
+	});
+	expect(o.decode({})).toEqual({
+		success: false,
+		errors: {
+			".foo": [
+				{
+					input: undefined,
+					message: "not type number",
+				},
+			],
+		},
+	});
+});
+
 test("union", () => {
 	const schema = v.union([v.string(), v.number()]);
 	type O = v.Output<typeof schema>;
