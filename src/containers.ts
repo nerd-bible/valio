@@ -2,7 +2,7 @@ import type { Input, Output, Result } from "./pipe.ts";
 import { Context, HalfPipe, Pipe } from "./pipe.ts";
 import * as p from "./primitives.ts";
 
-class ValioArray<T> extends p.Arrayish<any[], T[]> {
+export class ValioArray<T> extends p.Arrayish<any[], T[]> {
 	element: Pipe<any, T>;
 
 	static typeCheck(v: any): v is any[] {
@@ -45,7 +45,7 @@ export function array<T>(element: Pipe<any, T>): ValioArray<T> {
 	return new ValioArray(element);
 }
 
-class ValioRecord<K extends PropertyKey, V> extends Pipe<
+export class ValioRecord<K extends PropertyKey, V> extends Pipe<
 	Record<any, any>,
 	Record<K, V>
 > {
@@ -109,7 +109,7 @@ export function record<K extends PropertyKey, V>(
 	return new ValioRecord(keyPipe, valPipe);
 }
 
-class Union<T extends Readonly<Pipe[]>> extends Pipe<
+export class Union<T extends Readonly<Pipe[]>> extends Pipe<
 	Output<T[number]>,
 	Output<T[number]>
 > {

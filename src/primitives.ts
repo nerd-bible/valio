@@ -50,7 +50,7 @@ export class Comparable<I, O> extends Pipe<I, O> {
 	}
 }
 
-class ValioNumber extends Comparable<number, number> {
+export class ValioNumber extends Comparable<number, number> {
 	constructor() {
 		const half = new HalfPipe("number", (v) => typeof v === "number");
 		super(half, half);
@@ -77,7 +77,7 @@ export class Arrayish<
 	}
 }
 
-class ValioString extends Arrayish<string, string> {
+export class ValioString extends Arrayish<string, string> {
 	constructor() {
 		const half = new HalfPipe("string", (v) => typeof v === "string");
 		super(half, half);
@@ -93,7 +93,7 @@ export function string(): ValioString {
 
 export type Lit = string | number | bigint | boolean | null | undefined;
 
-class ValioLiteral<T extends Lit> extends Pipe<T, T> {
+export class ValioLiteral<T extends Lit> extends Pipe<T, T> {
 	literal: T;
 
 	constructor(literal: T) {
@@ -106,7 +106,7 @@ export function literal<T extends Lit>(literal: T) {
 	return new ValioLiteral(literal);
 }
 
-class ValioEnum<T extends Lit> extends Pipe<T, T> {
+export class ValioEnum<T extends Lit> extends Pipe<T, T> {
 	literals: readonly T[];
 
 	constructor(literals: readonly T[]) {
@@ -122,7 +122,7 @@ function enum_<T extends Lit>(literals: readonly T[]): ValioEnum<T> {
 }
 export { enum_ as enum };
 
-class ValioDate extends Comparable<Date, Date> {
+export class ValioDate extends Comparable<Date, Date> {
 	constructor() {
 		const half = new HalfPipe("date", (v: any): v is Date => v instanceof Date);
 		super(half, half);
