@@ -72,6 +72,9 @@ export class Arrayish<
 	maxLength(n: number) {
 		return this.refine((v) => v.length <= n, "maxLength", { n });
 	}
+	length(n: number) {
+		return this.refine((v) => v.length === n, "eqLength", { n });
+	}
 }
 
 class ValioString extends Arrayish<string, string> {

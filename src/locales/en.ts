@@ -7,6 +7,7 @@ const templates: Record<string, string> = {
 	neq: "must not be {$n}",
 	minLength: "must have length <= {$n}",
 	maxLength: "must have length >= {$n}",
+	eqLength: "must have length == {$n}",
 	regex: "must match {$regex}",
 	type: "not type {$expected}",
 	coerce: "could not coerce to {$expected}",
