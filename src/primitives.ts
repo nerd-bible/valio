@@ -1,35 +1,52 @@
-import { HalfPipe, Pipe } from "./pipe.ts";
+import { Pipe } from "./pipe.ts";
 
-function primitive<T>(name: string, typeCheck: (v: T) => v is T) {
-	const half = new HalfPipe(name, typeCheck);
-	return new Pipe(half, half);
+function primitive<T>(name: string, typeCheck: (v: any) => v is T) {
+	return class extends Pipe<T, T> {
+		get inputName() {
+			return name;
+		}
+		inputTypeCheck(v: any) {
+			return typeCheck(v);
+		}
+
+		get outputName() {
+			return name;
+		}
+		outputTypeCheck(v: any) {
+			return typeCheck(v);
+		}
+	};
 }
 
+const Boolean = primitive<boolean>(
+	"boolean",
+	(v): v is boolean => typeof v === "boolean",
+);
 export function boolean() {
-	return primitive<boolean>(
-		"boolean",
-		(v): v is boolean => typeof v === "boolean",
-	);
+	return new Boolean();
 }
 
-// biome-ignore lint/suspicious/noShadowRestrictedNames: point of lib
-export function undefined() {
-	return primitive<undefined>(
-		"undefined",
-		(v): v is undefined => typeof v === "undefined",
-	);
+const Undefined = primitive<undefined>(
+	"undefined",
+	(v): v is undefined => typeof v === "undefined",
+);
+function undefined_() {
+	return new Undefined();
 }
+export { undefined_ as undefined };
 
+const Any = primitive<boolean>("any", (_v): _v is any => true);
 export function any() {
-	return primitive<any>("any", (_v): _v is any => true);
+	return new Any();
 }
 
+const Null = primitive<null>("null", (v): v is null => v === null);
 function null_() {
-	return primitive<null>("null", (v): v is null => v === null);
+	return new Null();
 }
 export { null_ as null };
 
-export class Comparable<I, O> extends Pipe<I, O> {
+export abstract class Comparable<I, O = I> extends Pipe<I, O> {
 	gt(n: O) {
 		return this.refine((v) => v > n, "gt", { n });
 	}
@@ -50,17 +67,53 @@ export class Comparable<I, O> extends Pipe<I, O> {
 	}
 }
 
-export class ValioNumber extends Comparable<number, number> {
-	constructor() {
-		const half = new HalfPipe("number", (v) => typeof v === "number");
-		super(half, half);
+export class ValioNumber extends Comparable<number> {
+	static typeCheck(v: any): v is number {
+		return typeof v === "number";
+	}
+
+	get inputName() {
+		return "number";
+	}
+	inputTypeCheck(v: any) {
+		return ValioNumber.typeCheck(v);
+	}
+
+	get outputName() {
+		return this.inputName;
+	}
+	outputTypeCheck(v: any) {
+		return ValioNumber.typeCheck(v);
 	}
 }
 export function number() {
 	return new ValioNumber();
 }
 
-export class Arrayish<
+export class ValioDate extends Comparable<Date> {
+	static typeCheck(v: any): v is Date {
+		return v instanceof Date;
+	}
+
+	get inputName() {
+		return "date";
+	}
+	inputTypeCheck(v: any) {
+		return ValioDate.typeCheck(v);
+	}
+
+	get outputName() {
+		return this.inputName;
+	}
+	outputTypeCheck(v: any) {
+		return ValioDate.typeCheck(v);
+	}
+}
+export function date(): ValioDate {
+	return new ValioDate();
+}
+
+export abstract class Arrayish<
 	I,
 	O extends {
 		length: number;
@@ -78,9 +131,18 @@ export class Arrayish<
 }
 
 export class ValioString extends Arrayish<string, string> {
-	constructor() {
-		const half = new HalfPipe("string", (v) => typeof v === "string");
-		super(half, half);
+	inputName = "string";
+	outputName = this.inputName;
+
+	static typeCheck(v: any): v is string {
+		return typeof v === "string";
+	}
+
+	inputTypeCheck(v: any) {
+		return ValioString.typeCheck(v);
+	}
+	outputTypeCheck(v: any) {
+		return ValioString.typeCheck(v);
 	}
 
 	regex(re: RegExp) {
@@ -97,9 +159,26 @@ export class ValioLiteral<T extends Lit> extends Pipe<T, T> {
 	literal: T;
 
 	constructor(literal: T) {
-		const half = new HalfPipe(`${literal}`, (v): v is T => v === literal);
-		super(half, half);
+		super();
 		this.literal = literal;
+	}
+
+	static typeCheck(v: any): v is T {
+		return v === this.literal;
+	}
+
+	get inputName() {
+		return `${this.literal}`;
+	}
+	inputTypeCheck(v: any): v is T {
+		return ValioLiteral.typeCheck(v);
+	}
+
+	get outputName() {
+		return this.inputName;
+	}
+	outputTypeCheck(v: any): v is T {
+		return ValioLiteral.typeCheck(v);
 	}
 }
 export function literal<T extends Lit>(literal: T) {
@@ -110,24 +189,25 @@ export class ValioEnum<T extends Lit> extends Pipe<T, T> {
 	literals: readonly T[];
 
 	constructor(literals: readonly T[]) {
-		const half = new HalfPipe(`${literals.join(",")}`, (v: any): v is T =>
-			literals.includes(v),
-		);
-		super(half, half);
+		super();
 		this.literals = literals;
+	}
+
+	get inputName() {
+		return `${this.literals.join(",")}`;
+	}
+	inputTypeCheck(v: any): v is T {
+		return this.literals.includes(v);
+	}
+
+	get outputName() {
+		return this.inputName;
+	}
+	outputTypeCheck(v: any): v is T {
+		return this.inputTypeCheck(v);
 	}
 }
 function enum_<T extends Lit>(literals: readonly T[]): ValioEnum<T> {
 	return new ValioEnum(literals);
 }
 export { enum_ as enum };
-
-export class ValioDate extends Comparable<Date, Date> {
-	constructor() {
-		const half = new HalfPipe("date", (v: any): v is Date => v instanceof Date);
-		super(half, half);
-	}
-}
-export function date(): ValioDate {
-	return new ValioDate();
-}

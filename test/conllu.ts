@@ -208,19 +208,19 @@ const normal = z.codecs.custom(z.string(), z.array(sentence), {
 });
 
 test("parses and encodes gum", () => {
-	// const decoded = wordConllu.decode(
-	// 		"1	In	in	ADP	IN	_	0	case	3:foo	Verse=1|SourceMap=1",
-	// 	);
+	// const decoded = wordConllu.decode("1	In	in	ADP	IN	_	0	case	3:foo	Verse=1|SourceMap=1");
+	// console.dir(decoded, { depth: null })
 	// if (decoded.success) {
 	// 	console.dir(decoded.output, { depth: null });
-	// 	console.log(wordConllu.encode(decoded.output).output)
+	// 	console.log(wordConllu.encode(decoded.output).output);
 	// }
 
 	const text = readFileSync(join(import.meta.dirname, "gum.conllu"), "utf8");
 	const parsed = normal.decode(text);
-	expect(parsed.errors).toBeUndefined();
 	if (parsed.success) {
 		const reencoded = normal.encode(parsed.output);
-		expect(reencoded.errors).toBeUndefined();
+		expect(reencoded.success).toBe(true);
+	} else {
+		expect(parsed.errors).toBeUndefined();
 	}
 });

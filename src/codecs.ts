@@ -10,9 +10,26 @@ export function custom<I, O>(
 	},
 ): Pipe<I, O> {
 	const res = output.clone() as any;
-	res.i = input.i.clone();
-	res.i.transform = codec.decode;
-	res.o.transform = codec.encode;
+	Object.defineProperty(res, "inputName", {
+		get() {
+			return input.inputName;
+		},
+	});
+	Object.defineProperty(res, "inputTypeCheck", {
+		get() {
+			return input.inputTypeCheck.bind(input);
+		},
+	});
+	Object.defineProperty(res, "inputTransform", {
+		get() {
+			return codec.decode;
+		},
+	});
+	Object.defineProperty(res, "outputTransform", {
+		get() {
+			return codec.encode;
+		},
+	});
 	return res;
 }
 

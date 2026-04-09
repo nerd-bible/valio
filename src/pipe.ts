@@ -6,46 +6,10 @@ export type Result<T> =
 	| { success: true; output: T }
 	| { success: false; errors: any };
 
-function clone<T>(obj: T): T {
-	return Object.create(
-		Object.getPrototypeOf(obj),
-		Object.getOwnPropertyDescriptors(obj),
-	);
-}
-
 interface Check<T> {
 	valid(data: T, ctx: Context): boolean;
 	name: string;
 	props: Record<any, any>;
-}
-
-export class HalfPipe<I, O = never> {
-	name: string;
-	typeCheck: (v: any) => v is I;
-	transform?: (v: I, ctx: Context) => Result<O>;
-	/** Checks to run after type check */
-	checks: Check<I>[] = [];
-
-	constructor(
-		name: string,
-		typeCheck: (v: any) => v is I,
-		transform?: (v: I, ctx: Context) => Result<O>,
-		checks: Check<I>[] = [],
-	) {
-		this.name = name;
-		this.typeCheck = typeCheck;
-		this.transform = transform;
-		this.checks = checks;
-	}
-
-	clone(): HalfPipe<I, O> {
-		return new HalfPipe(
-			this.name,
-			this.typeCheck,
-			this.transform,
-			this.checks.slice(),
-		);
-	}
 }
 
 /** During encoding, decoding, or validation. */
@@ -75,13 +39,18 @@ export class Context {
 		this.pushError({ input, message });
 	}
 
-	run<I, O>(input: any, halfPipe: HalfPipe<I, O>): Result<I> {
-		if (!halfPipe.typeCheck(input)) {
-			this.pushErrorFmt("type", input, { expected: halfPipe.name });
+	run<I>(
+		input: any,
+		name: () => string,
+		typeCheck: (v: any) => v is I,
+		checks?: Check<I>[],
+	): Result<I> {
+		if (!typeCheck(input)) {
+			this.pushErrorFmt("type", input, { expected: name() });
 			return { success: false, errors: this.errors };
 		}
 		let success = true;
-		for (const c of halfPipe.checks ?? []) {
+		for (const c of checks ?? []) {
 			if (!c.valid(input, this)) {
 				this.pushErrorFmt(c.name, input, c.props);
 				success = false;
@@ -92,35 +61,47 @@ export class Context {
 	}
 }
 
-export class Pipe<I = any, O = any> {
-	i: HalfPipe<I, O>;
-	o: HalfPipe<O, I>;
-
-	constructor(i: HalfPipe<I, O>, o: HalfPipe<O, I>) {
-		this.i = i;
-		this.o = o;
+export function cloneObject(obj: any) {
+	const res =
+		Object.getPrototypeOf(obj) == Object.prototype ? {} : Object.create(obj);
+	for (const p in obj) {
+		const v = obj[p];
+		if (Array.isArray(v)) res[p] = v.slice();
+		else if (v && v.clone) res[p] = v.clone();
+		else if (v && typeof v === "object") res[p] = cloneObject(v);
+		else res[p] = v;
 	}
+	return res;
+}
 
+export abstract class Pipe<I = any, O = any> {
 	pipes: Pipe<any, any>[] = [];
 	registry: Record<PropertyKey, any> = {};
-	debug = false;
+
+	abstract inputName: string;
+	abstract inputTypeCheck(v: any): v is I;
+	/** Checks to run after type check */
+	inputChecks?: Check<I>[];
+	inputTransform?(v: I, ctx: Context): Result<O>;
+
+	abstract outputName: string;
+	abstract outputTypeCheck(v: any): v is O;
+	/** Checks to run after type check */
+	outputChecks?: Check<O>[];
+	outputTransform?(v: O, ctx: Context): Result<I>;
 
 	clone(): this {
-		const res = clone(this);
-		res.i = res.i.clone();
-		res.o = res.o.clone();
-		res.pipes = res.pipes.slice();
-		res.registry = { ...res.registry };
-		return res;
+		return cloneObject(this);
 	}
 
 	refine(
 		valid: (data: O, ctx: Context) => boolean,
 		name: string,
 		props: Record<any, any> = {},
-	): this {
+	) {
 		const res = this.clone();
-		res.o.checks.push({ valid, name, props });
+		res.outputChecks ??= [];
+		res.outputChecks.push({ valid, name, props });
 		return res;
 	}
 
@@ -132,15 +113,25 @@ export class Pipe<I = any, O = any> {
 
 	decodeAny(input: any, ctx = new Context()): Result<O> {
 		// 1. Verify input
-		let res: Result<any> = ctx.run(input, this.i);
+		let res: Result<any> = ctx.run(
+			input,
+			() => this.inputName,
+			this.inputTypeCheck.bind(this),
+			this.inputChecks,
+		);
 		if (!res.success) return res;
 		// 2. Transform input to output
-		if (this.i.transform) {
-			res = this.i.transform(res.output, ctx);
+		if (this.inputTransform) {
+			res = this.inputTransform(res.output, ctx);
 			if (!res.success) return res;
 		}
 		// 3. Verify output
-		res = ctx.run(res.output, this.o);
+		res = ctx.run(
+			res.output,
+			() => this.outputName,
+			this.outputTypeCheck.bind(this),
+			this.outputChecks,
+		);
 		if (!res.success) return res;
 		// 4. Next
 		for (const p of this.pipes) {
@@ -161,21 +152,31 @@ export class Pipe<I = any, O = any> {
 			if (!res.success) return res;
 		}
 		// 2. Verify output
-		res = ctx.run(res.output, this.o);
+		res = ctx.run(
+			res.output,
+			() => this.outputName,
+			this.outputTypeCheck.bind(this),
+			this.outputChecks,
+		);
 		if (!res.success) return res;
 		// 3. Transform output to input
-		if (this.o.transform) {
-			res = this.o.transform(res.output, ctx);
+		if (this.outputTransform) {
+			res = this.outputTransform(res.output, ctx);
 			if (!res.success) return res;
 		}
 		// 4. Verify input
-		return ctx.run(res.output, this.i);
+		return ctx.run(
+			res.output,
+			() => this.inputName,
+			this.inputTypeCheck.bind(this),
+			this.inputChecks,
+		);
 	}
 	encode(output: O, ctx = new Context()): Result<I> {
 		return this.encodeAny(output, ctx);
 	}
 
-	register(key: PropertyKey, value: any): this {
+	register(key: PropertyKey, value: any): Pipe<I, O> {
 		const res = this.clone();
 		res.registry[key] = value;
 		return res;

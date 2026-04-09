@@ -28,7 +28,7 @@ test("array failed element", () => {
 	});
 });
 
-test("object", () => {
+test("plain object", () => {
 	const o = v.object({ foo: v.number().gt(4) });
 	type O = v.Output<typeof o>;
 
@@ -51,6 +51,14 @@ test("object", () => {
 			],
 		},
 	});
+});
+
+test("registry", () => {
+	const o1 = v.object({ foo: v.number().gt(4) }).register("foo", 1);
+	const o2 = o1.register("bar", 2);
+
+	expect(o1.registry).toStrictEqual({ foo: 1 });
+	expect(o2.registry).toStrictEqual({ foo: 1, bar: 2 });
 });
 
 test("loose object", () => {

@@ -1,44 +1,52 @@
 import type { Input, Output, Result } from "./pipe.ts";
-import { Context, HalfPipe, Pipe } from "./pipe.ts";
+import { Context, Pipe } from "./pipe.ts";
 import * as p from "./primitives.ts";
 
 export class ValioArray<T> extends p.Arrayish<any[], T[]> {
 	element: Pipe<any, T>;
 
+	constructor(element: Pipe<any, T>) {
+		super();
+		this.element = element;
+	}
+
+	get inputName() {
+		return "array";
+	}
+
 	static typeCheck(v: any): v is any[] {
 		return Array.isArray(v);
 	}
 
-	constructor(element: Pipe<any, T>) {
-		super(
-			new HalfPipe("array", ValioArray.typeCheck, function parseAnyArr(
-				input: any[],
-				ctx: Context,
-			): Result<T[]> {
-				const output = new Array<T>(input.length);
-				let success = true;
+	inputTypeCheck(v: any): v is any[] {
+		return ValioArray.typeCheck(v);
+	}
 
-				const length = ctx.jsonPath.length;
-				for (let i = 0; i < input.length; i++) {
-					ctx.jsonPath[length] = i.toString();
-					const decoded = element.decode(input[i], ctx);
-					if (decoded.success) output[i] = decoded.output;
-					else success = false;
-				}
-				ctx.jsonPath.length = length;
+	inputTransform(input: any[], ctx: Context): Result<T[]> {
+		const output = new Array<T>(input.length);
+		let success = true;
 
-				if (!success) return { success, errors: ctx.errors };
-				return { success, output };
-			}),
-			new HalfPipe(`array<${element.o.name}>`, function isArrT(
-				v: any,
-			): v is T[] {
-				if (!ValioArray.typeCheck(v)) return false;
-				for (const e of v) if (!element.o.typeCheck(e)) return false;
-				return true;
-			}),
-		);
-		this.element = element;
+		const length = ctx.jsonPath.length;
+		for (let i = 0; i < input.length; i++) {
+			ctx.jsonPath[length] = i.toString();
+			const decoded = this.element.decode(input[i], ctx);
+			if (decoded.success) output[i] = decoded.output;
+			else success = false;
+		}
+		ctx.jsonPath.length = length;
+
+		if (!success) return { success, errors: ctx.errors };
+		return { success, output };
+	}
+
+	get outputName() {
+		return `array<${this.element.outputName}>`;
+	}
+
+	outputTypeCheck(v: any): v is T[] {
+		if (!ValioArray.typeCheck(v)) return false;
+		for (const e of v) if (!this.element.outputTypeCheck(e)) return false;
+		return true;
 	}
 }
 export function array<T>(element: Pipe<any, T>): ValioArray<T> {
@@ -52,54 +60,61 @@ export class ValioRecord<K extends PropertyKey, V> extends Pipe<
 	keyPipe: Pipe<any, K>;
 	valPipe: Pipe<any, V>;
 
-	static typeCheck(v: any): v is Record<any, any> {
-		return Object.prototype.toString.call(v) === "[object Object]";
-	}
-
 	constructor(keyPipe: Pipe<any, K>, valPipe: Pipe<any, V>) {
-		super(
-			new HalfPipe("object", ValioRecord.typeCheck, function anyToRecordKV(
-				input: Record<any, any>,
-				ctx: Context,
-			): Result<Record<K, V>> {
-				const output = {} as Record<K, V>;
-
-				let success = true;
-				const length = ctx.jsonPath.length;
-				for (const key in input) {
-					ctx.jsonPath[length] = key;
-					const decodedKey = keyPipe.decode(key, ctx);
-					if (decodedKey.success) {
-						const decodedVal = valPipe.decode((input as any)[key], ctx);
-						if (decodedVal.success) {
-							output[decodedKey.output] = decodedVal.output;
-						} else {
-							success = false;
-						}
-					} else {
-						success = false;
-					}
-				}
-				ctx.jsonPath.length = length;
-
-				if (!success) return { success, errors: ctx.errors };
-				return { success, output };
-			}),
-			new HalfPipe(
-				`record<${keyPipe.o.name},${valPipe.o.name}>`,
-				function recordCheckV(v): v is Record<K, V> {
-					if (!ValioRecord.typeCheck(v)) return false;
-					for (const k in v) {
-						// Keys will always be strings.
-						// if (!keyPipe.o.typeCheck(k)) return false;
-						if (!valPipe.o.typeCheck(v[k])) return false;
-					}
-					return true;
-				},
-			),
-		);
+		super();
 		this.keyPipe = keyPipe;
 		this.valPipe = valPipe;
+	}
+
+	get inputName() {
+		return "object";
+	}
+
+	static typeCheck(v: any): v is Record<any, any> {
+		return v && typeof v === "object";
+	}
+
+	inputTypeCheck(v: any): v is Record<any, any> {
+		return ValioRecord.typeCheck(v);
+	}
+
+	inputTransform(input: Record<any, any>, ctx: Context): Result<Record<K, V>> {
+		const output = {} as Record<K, V>;
+
+		let success = true;
+		const length = ctx.jsonPath.length;
+		for (const key in input) {
+			ctx.jsonPath[length] = key;
+			const decodedKey = this.keyPipe.decode(key, ctx);
+			if (decodedKey.success) {
+				const decodedVal = this.valPipe.decode((input as any)[key], ctx);
+				if (decodedVal.success) {
+					output[decodedKey.output] = decodedVal.output;
+				} else {
+					success = false;
+				}
+			} else {
+				success = false;
+			}
+		}
+		ctx.jsonPath.length = length;
+
+		if (!success) return { success, errors: ctx.errors };
+		return { success, output };
+	}
+
+	get outputName() {
+		return `record<${this.keyPipe.inputName},${this.valPipe.outputName}>`;
+	}
+
+	outputTypeCheck(v: any): v is Record<K, V> {
+		if (!ValioRecord.typeCheck(v)) return false;
+		for (const k in v) {
+			// Keys will always be strings.
+			// if (!keyPipe.o.typeCheck(k)) return false;
+			if (!this.valPipe.outputTypeCheck(v[k])) return false;
+		}
+		return true;
 	}
 }
 export function record<K extends PropertyKey, V>(
@@ -116,36 +131,44 @@ export class Union<T extends Readonly<Pipe[]>> extends Pipe<
 	options: T;
 
 	constructor(options: T) {
-		const name = options.map((o) => o.o.name).join("|");
-		type O = Output<T[number]>;
-		super(
-			new HalfPipe(
-				name,
-				function isUnionType(v: any): v is O {
-					for (const f of options) if (f.i.typeCheck(v)) return true;
-					return false;
-				},
-				(data: O, ctx: Context): Result<O> => {
-					// Throw away errors since we expect them.
-					const newCtx = new Context();
-					newCtx.pushErrorFmt = () => {};
-					newCtx.pushError = () => {};
-					for (const f of options) {
-						const decoded = f.decode(data, newCtx);
-						if (decoded.success) return decoded;
-					}
-
-					// Sad path -- do again with real ctx to gather errors.
-					for (const f of options) f.decode(data, ctx);
-					return { success: false, errors: ctx.errors };
-				},
-			),
-			new HalfPipe(name, function isUnionType2(v: any): v is O {
-				for (const f of options) if (f.o.typeCheck(v)) return true;
-				return false;
-			}),
-		);
+		super();
 		this.options = options;
+	}
+
+	get inputName() {
+		return this.options.map((o) => o.outputName).join("|");
+	}
+
+	inputTypeCheck(v: any): v is Output<T[number]> {
+		for (const f of this.options) if (f.inputTypeCheck(v)) return true;
+		return false;
+	}
+
+	inputTransform(
+		data: Output<T[number]>,
+		ctx: Context,
+	): Result<Output<T[number]>> {
+		// Throw away errors since we expect them.
+		const newCtx = new Context();
+		newCtx.pushErrorFmt = () => {};
+		newCtx.pushError = () => {};
+		for (const f of this.options) {
+			const decoded = f.decode(data, newCtx);
+			if (decoded.success) return decoded;
+		}
+
+		// Sad path -- do again with real ctx to gather errors.
+		for (const f of this.options) f.decode(data, ctx);
+		return { success: false, errors: ctx.errors };
+	}
+
+	get outputName() {
+		return this.inputName;
+	}
+
+	outputTypeCheck(v: any): v is Output<T[number]> {
+		for (const f of this.options) if (f.outputTypeCheck(v)) return true;
+		return false;
 	}
 }
 export function union<T extends Readonly<Pipe[]>>(options: T): Union<T> {
@@ -188,30 +211,26 @@ export class ValioObject<
 	}
 
 	constructor(shape: Shape, isLoose: boolean) {
-		super(
-			new HalfPipe("object", ValioObject.typeCheck, (data, ctx) =>
-				this.transformInput(data, ctx),
-			),
-			new HalfPipe(
-				`{${Object.entries(shape)
-					.map(([k, v]) => `${k}: ${v.o.name}`)
-					.join(",")}}`,
-				(v) => this.typeCheckOutput(v),
-			),
-		);
-
+		super();
 		this.shape = shape;
 		this.isLoose = isLoose;
 	}
 
-	clone(): this {
-		return new ValioObject(this.shape, this.isLoose) as any;
+	get inputName() {
+		return "object";
 	}
 
-	protected transformInput(
-		data: object,
-		ctx: Context,
-	): Result<ObjectOutput<Shape>> {
+	get outputName() {
+		return `{${Object.entries(this.shape)
+			.map(([k, v]) => `${k}: ${v.outputName}`)
+			.join(",")}}`;
+	}
+
+	inputTypeCheck(v: any): v is Record<any, any> {
+		return ValioObject.typeCheck(v);
+	}
+
+	inputTransform(data: object, ctx: Context): Result<ObjectOutput<Shape>> {
 		const output: Record<PropertyKey, any> = this.isLoose ? data : {};
 		let success = true;
 
@@ -232,10 +251,10 @@ export class ValioObject<
 		return { success, output: output as ObjectOutput<Shape> };
 	}
 
-	protected typeCheckOutput(v: any): v is ObjectOutput<Shape> {
+	outputTypeCheck(v: any): v is ObjectOutput<Shape> {
 		if (!ValioObject.typeCheck(v)) return false;
 		for (const s in this.shape)
-			if (!this.shape[s]!.o.typeCheck(v[s])) return false;
+			if (!this.shape[s]!.outputTypeCheck(v[s])) return false;
 		return true;
 	}
 

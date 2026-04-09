@@ -2,7 +2,7 @@ import { test } from "node:test";
 import expect from "expect";
 import * as v from "./index.ts";
 
-test("number codec", () => {
+test("plain number codec", () => {
 	const schema = v.codecs.number();
 
 	expect(schema.decode("13")).toEqual({ success: true, output: 13 });
@@ -34,9 +34,7 @@ test("2 pipes", () => {
 
 	expect(next.decode("3")).toEqual({
 		success: false,
-		errors: {
-			".": [{ input: 3, message: "must be > 5" }],
-		},
+		errors: { ".": [{ input: 3, message: "must be > 5" }] },
 	});
 	expect(schema.decode(undefined)).toEqual({
 		success: true,
