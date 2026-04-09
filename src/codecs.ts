@@ -35,11 +35,11 @@ export function custom<I, O>(
 
 export function number(
 	parser = Number.parseFloat,
-): p.Comparable<string | number | null | undefined, number> {
-	return custom(p.any(), p.number(), {
+): p.Comparable<any, number> {
+	return custom<any, number>(p.any(), p.number(), {
 		decode(input, ctx) {
 			if (typeof input === "number") return { success: true, output: input };
-			if (!input || input.toLowerCase() === "nan")
+			if (input == null || (typeof input === "string" && input.toLowerCase()) === "nan")
 				return { success: true, output: Number.NaN };
 
 			const output = parser(input);

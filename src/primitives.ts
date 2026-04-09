@@ -163,7 +163,7 @@ export class ValioLiteral<T extends Lit> extends Pipe<T, T> {
 		this.literal = literal;
 	}
 
-	static typeCheck(v: any): v is T {
+	typeCheck(v: any): v is T {
 		return v === this.literal;
 	}
 
@@ -171,14 +171,14 @@ export class ValioLiteral<T extends Lit> extends Pipe<T, T> {
 		return `${this.literal}`;
 	}
 	inputTypeCheck(v: any): v is T {
-		return ValioLiteral.typeCheck(v);
+		return this.typeCheck(v);
 	}
 
 	get outputName() {
 		return this.inputName;
 	}
 	outputTypeCheck(v: any): v is T {
-		return ValioLiteral.typeCheck(v);
+		return this.typeCheck(v);
 	}
 }
 export function literal<T extends Lit>(literal: T) {

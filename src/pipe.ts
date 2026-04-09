@@ -5,8 +5,7 @@ export type Errors = { [inputPath: string]: Error[] };
 export type Result<T> =
 	| { success: true; output: T }
 	| { success: false; errors: any };
-
-interface Check<T> {
+export interface Check<T> {
 	valid(data: T, ctx: Context): boolean;
 	name: string;
 	props: Record<any, any>;
