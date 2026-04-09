@@ -35,7 +35,7 @@ function undefined_() {
 }
 export { undefined_ as undefined };
 
-export const ValioAny = primitive<boolean>("any", (_v): _v is any => true);
+export const ValioAny = primitive<any>("any", (_v): _v is any => true);
 export function any() {
 	return new ValioAny();
 }
