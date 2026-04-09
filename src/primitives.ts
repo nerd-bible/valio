@@ -18,31 +18,31 @@ function primitive<T>(name: string, typeCheck: (v: any) => v is T) {
 	};
 }
 
-const Boolean = primitive<boolean>(
+export const ValioBoolean = primitive<boolean>(
 	"boolean",
 	(v): v is boolean => typeof v === "boolean",
 );
 export function boolean() {
-	return new Boolean();
+	return new ValioBoolean();
 }
 
-const Undefined = primitive<undefined>(
+export const ValioUndefined = primitive<undefined>(
 	"undefined",
 	(v): v is undefined => typeof v === "undefined",
 );
 function undefined_() {
-	return new Undefined();
+	return new ValioUndefined();
 }
 export { undefined_ as undefined };
 
-const Any = primitive<boolean>("any", (_v): _v is any => true);
+export const ValioAny = primitive<boolean>("any", (_v): _v is any => true);
 export function any() {
-	return new Any();
+	return new ValioAny();
 }
 
-const Null = primitive<null>("null", (v): v is null => v === null);
+export const ValioNull = primitive<null>("null", (v): v is null => v === null);
 function null_() {
-	return new Null();
+	return new ValioNull();
 }
 export { null_ as null };
 
