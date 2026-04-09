@@ -19,10 +19,7 @@
 	},
 	"prettier": "@nerd-bible/config/prettier",
 	"devDependencies": {
-		"@nerd-bible/config": "^0.1.5",
-		"@types/node": "^25.3.3",
-		"expect": "^30.2.0",
-		"typescript": "^5.9.3"
+		"@nerd-bible/config": "^0.1.9"
 	},
 	"files": [
 		"src",
