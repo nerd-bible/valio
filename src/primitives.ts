@@ -90,6 +90,29 @@ export function number() {
 	return new ValioNumber();
 }
 
+export class ValioBigInt extends Comparable<bigint> {
+	static typeCheck(v: any): v is bigint {
+		return typeof v === "bigint";
+	}
+
+	get inputName() {
+		return "bigint";
+	}
+	inputTypeCheck(v: any) {
+		return ValioBigInt.typeCheck(v);
+	}
+
+	get outputName() {
+		return this.inputName;
+	}
+	outputTypeCheck(v: any) {
+		return ValioBigInt.typeCheck(v);
+	}
+}
+export function bigint() {
+	return new ValioBigInt();
+}
+
 export class ValioDate extends Comparable<Date> {
 	static typeCheck(v: any): v is Date {
 		return v instanceof Date;
