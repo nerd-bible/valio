@@ -33,13 +33,14 @@ export function custom<I, O>(
 	return res;
 }
 
-export function number(
-	parser = Number.parseFloat,
-): p.Comparable<any, number> {
+export function number(parser = Number.parseFloat): p.Comparable<any, number> {
 	return custom<any, number>(p.any(), p.number(), {
 		decode(input, ctx) {
 			if (typeof input === "number") return { success: true, output: input };
-			if (input == null || (typeof input === "string" && input.toLowerCase()) === "nan")
+			if (
+				input == null ||
+				(typeof input === "string" && input.toLowerCase()) === "nan"
+			)
 				return { success: true, output: Number.NaN };
 
 			const output = parser(input);
